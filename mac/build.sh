@@ -39,6 +39,7 @@ echo "▸ 4/4 校验"
 codesign -v --verbose=1 "$APP"
 "$CONTENTS/MacOS/OffWorkCountdown" --version-check
 "$CONTENTS/MacOS/OffWorkCountdown" --hotkey-check
+"$CONTENTS/MacOS/OffWorkCountdown" --selftest
 
 echo ""
 echo "✅ 已生成：$APP"
