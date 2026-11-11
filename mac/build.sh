@@ -26,9 +26,12 @@ sips -z 1024 1024 "$BUILD/icon_1024.png" --out "$ICONSET/icon_512x512@2x.png" >/
 iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns"
 
 echo "▸ 2/4 编译 Swift"
+# main.swift 只放入口；其余按职责拆到 Sources/ 子目录，这里收集全部 .swift 一起编译
+SWIFT_FILES=()
+while IFS= read -r f; do SWIFT_FILES+=("$f"); done < <(find "$HERE/Sources" -name '*.swift' -type f | sort)
 xcrun swiftc -swift-version 5 -O -target arm64-apple-macosx13.0 \
   -module-cache-path "$BUILD/ModuleCache" \
-  -o "$CONTENTS/MacOS/OffWorkCountdown" "$HERE/Sources/main.swift"
+  -o "$CONTENTS/MacOS/OffWorkCountdown" "${SWIFT_FILES[@]}"
 cp "$HERE/Info.plist" "$CONTENTS/Info.plist"
 plutil -lint "$CONTENTS/Info.plist"
 
