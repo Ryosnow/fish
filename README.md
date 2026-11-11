@@ -51,7 +51,7 @@ cd fish/mac
 | `mac/Info.plist` | 应用配置（`LSUIElement`，不显示 Dock 图标） |
 | `mac/build.sh` | 生成图标 → 收集全部 `.swift` 编译 → 打包 → ad-hoc 签名 → 自检 |
 | `mac/make_icon.py` | 纯 Python 标准库生成 App 图标 |
-| `docs/plans/` | 3 份历史设计文档（最终状态以 `mac/ARCHITECTURE.md` 为准） |
+| `mac/docs/` | 3 份模块级项目文档（进度环 / 界面与可访问性 / 项目结构）+ [索引](mac/docs/README.md) |
 | `archive/` | 早期网页版与旧配色预览，非当前交付物 |
 
 ## 自检

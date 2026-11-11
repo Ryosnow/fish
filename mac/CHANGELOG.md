@@ -1,6 +1,6 @@
 # 更新日志
 
-按时间倒序记录。`Info.plist` 的 `CFBundleShortVersionString` 当前为 **1.0**；这是个人小工具，不做语义化版本发布，改动以日期归档。每一轮的完整推导见 [docs/plans/](docs/plans/)，当前架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+按时间倒序记录。`Info.plist` 的 `CFBundleShortVersionString` 当前为 **1.0**；这是个人小工具，不做语义化版本发布，改动以日期归档。模块级文档见 [docs/](docs/)，当前架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 2026-11-11
 

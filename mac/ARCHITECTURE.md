@@ -2,7 +2,7 @@
 
 > 版本 1.0 · 更新 2026-11-11 · 面向后续维护与二次开发
 >
-> 本文描述「是什么、怎么组织、为什么这么设计」。构建与逐模块实现细节见 [README.md](README.md)，各轮设计决策见 [docs/plans/](docs/plans/)。
+> 本文描述「是什么、怎么组织、为什么这么设计」。构建与逐模块实现细节见 [README.md](README.md)，模块级文档见 [docs/](docs/)。
 
 ---
 
@@ -69,7 +69,7 @@ OffWorkCountdown/
 ├── build.sh
 ├── README.md
 ├── ARCHITECTURE.md                 ← 本文
-└── docs/plans/                      各轮设计文档
+└── docs/                           模块级项目文档（进度环 / 界面与可访问性 / 项目结构）
 ```
 
 ```mermaid
@@ -114,7 +114,7 @@ graph TD
 | `--selftest` | 跑 `runSelfTest()` 的 38 项纯函数断言，失败退出非 0 |
 | 默认 | `NSApplication.shared` → `AppDelegate` → `setActivationPolicy(.accessory)` → `app.run()` |
 
-> **为什么入口这么瘦**：Swift 规定顶层可执行语句只能出现在 `main.swift`。旧版把 1798 行库代码和入口混在一起，全局变量按源码顺序初始化，`--selftest` 曾因 `QUOTES` 未初始化而 segfault。拆分后全局常量由编译器按需惰性初始化，该陷阱消失。详见 [多文件结构拆分设计文档](docs/plans/2026-11-11-多文件结构拆分-design.md)。
+> **为什么入口这么瘦**：Swift 规定顶层可执行语句只能出现在 `main.swift`。旧版把 1798 行库代码和入口混在一起，全局变量按源码顺序初始化，`--selftest` 曾因 `QUOTES` 未初始化而 segfault。拆分后全局常量由编译器按需惰性初始化，该陷阱消失。详见 [项目结构](docs/项目结构.md)。
 
 [build.sh](build.sh) 四步：
 
@@ -298,7 +298,7 @@ graph LR
 | `main.swift` 只放入口 | 根除全局变量按源码顺序初始化导致的 selftest segfault | 单文件 1798 行 |
 | 一键 `build.sh` 直接 swiftc | 轻量、无需 Xcode / SwiftPM，产出可直接双击的 .app | Xcode 工程 / SwiftPM bundle |
 
-完整推导见 [docs/plans/](docs/plans/) 下三份设计文档。
+模块级细节见 [docs/](docs/) 下三份项目文档。
 
 ---
 
@@ -323,7 +323,7 @@ graph LR
 | --- | --- |
 | 模块分层、数据流、生命周期、设计决策、技术债 | **本文（ARCHITECTURE.md）** |
 | 构建命令、目录、逐模块实现要点、改默认值 | [README.md](README.md) |
-| 某一轮改动「为什么这么做」的推导 | `docs/plans/` 下的设计文档（历史记录，最终状态以本文为准） |
+| 模块级实现细节 | `docs/` 下 3 份项目文档（见 [docs/README.md](docs/README.md)） |
 | 怎么用、快捷键、设置项含义 | [Obsidian 使用笔记](../下班倒数计时器.md) |
 | 版本与时间线 | [CHANGELOG.md](CHANGELOG.md) |
 
@@ -332,6 +332,7 @@ graph LR
 | [README.md](README.md) | 构建方法、目录说明、逐模块实现要点、修改默认值 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 本文：整体架构与决策 |
 | [下班倒数计时器.md](../下班倒数计时器.md) | Obsidian 使用笔记（面向用户） |
-| [docs/plans/2026-11-10-菜单栏进度环-design.md](docs/plans/2026-11-10-菜单栏进度环-design.md) | 进度环与菜单栏百分比设计 |
-| [docs/plans/2026-11-11-悬浮窗统一与可访问性-design.md](docs/plans/2026-11-11-悬浮窗统一与可访问性-design.md) | 悬浮窗统一、Dynamic Type、登录自启同步 |
-| [docs/plans/2026-11-11-多文件结构拆分-design.md](docs/plans/2026-11-11-多文件结构拆分-design.md) | 多文件拆分映射、约束与验证 |
+| [docs/README.md](docs/README.md) | 模块文档索引 |
+| [docs/菜单栏进度环.md](docs/菜单栏进度环.md) | 环的形态、色点、百分比、系统高亮与降级 |
+| [docs/界面与可访问性.md](docs/界面与可访问性.md) | 语义色、3 Tab、复选框、Dynamic Type、登录自启同步 |
+| [docs/项目结构.md](docs/项目结构.md) | 14 文件分层、依赖规则、`main.swift` 规则、构建 |

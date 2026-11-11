@@ -7,4 +7,4 @@
 | `下班倒数计时器.html` | 2026-11-05 的早期网页版（含老板键 `B`），可在别的电脑当备用 |
 | `进度环色点示意.png` | 2026-11-10 的进度环 + 四段色点预览，属于旧配色方案（现已固定黑白灰、取消自定义配色） |
 
-不要基于这些文件改需求或判断当前界面；当前状态以 [OffWorkCountdown/ARCHITECTURE.md](../OffWorkCountdown/ARCHITECTURE.md) 与 [下班倒数计时器.md](../下班倒数计时器.md) 为准。
+不要基于这些文件改需求或判断当前界面；当前状态以 [OffWorkCountdown/ARCHITECTURE.md](../mac/ARCHITECTURE.md) 与 [下班倒数计时器.md](../下班倒数计时器.md) 为准。

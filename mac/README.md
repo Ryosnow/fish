@@ -3,7 +3,7 @@
 一个 macOS 原生菜单栏 + 悬浮窗小应用，Swift 5 / SwiftUI + AppKit，最低 macOS 13。
 
 > 整体架构（模块分层、数据流、生命周期、设计决策、技术债）见 [ARCHITECTURE.md](ARCHITECTURE.md)；本文偏构建与逐模块实现细节。
-> 各轮推导见 `docs/plans/`（历史记录），版本时间线见 [CHANGELOG.md](CHANGELOG.md)，许可见 [LICENSE](LICENSE)。
+> 模块文档见 [docs/](docs/)，版本时间线见 [CHANGELOG.md](CHANGELOG.md)，许可见 [LICENSE](LICENSE)。
 
 ## 构建
 
@@ -28,13 +28,13 @@ cd 其他/OffWorkCountdown
 | `Info.plist` | `LSUIElement = true`（不显示 Dock 图标）等 |
 | `make_icon.py` | 纯标准库生成 1024px PNG 图标（无第三方依赖） |
 | `build.sh` | 生成图标 → 收集 `Sources/**/*.swift` 编译 → 打包 → 签名 → 三项自检 |
-| `docs/plans/` | 各轮设计文档（进度环、悬浮窗统一、多文件拆分） |
+| `docs/` | 3 份模块级项目文档（进度环 / 界面与可访问性 / 项目结构），见 [索引](docs/README.md) |
 
-拆分要点：`main.swift` 曾 1798 行，顶层代码与库代码混放导致全局变量按源码顺序初始化、历史 `--selftest` 因此崩溃；拆分后各文件只放声明、`private` 顶层声明与使用者同文件，`build.sh` 用 `find` 收集全部 `.swift`（Swift 按文件名识别 `main.swift` 为入口，顺序无关）。详见 `docs/plans/2026-11-11-多文件结构拆分-design.md`。
+拆分要点：`main.swift` 曾 1798 行，顶层代码与库代码混放导致全局变量按源码顺序初始化、历史 `--selftest` 因此崩溃；拆分后各文件只放声明、`private` 顶层声明与使用者同文件，`build.sh` 用 `find` 收集全部 `.swift`（Swift 按文件名识别 `main.swift` 为入口，顺序无关）。详见 [项目结构](docs/项目结构.md)。
 
 ## 关键实现
 
-> 架构全貌（分层、数据流、生命周期、设计决策）见 [ARCHITECTURE.md](ARCHITECTURE.md)；本节只列实现要点，历史推导见 `docs/plans/`。
+> 架构全貌（分层、数据流、生命周期、设计决策）见 [ARCHITECTURE.md](ARCHITECTURE.md)；本节只列实现要点，模块细节见 [docs/](docs/)。
 
 ### 菜单栏
 
@@ -48,7 +48,7 @@ cd 其他/OffWorkCountdown
 - 环从 12 点顺时针填充今日净工作进度；状态靠**形态编码**（进度弧 / 满环+中心点 / 虚线空环 / 极淡空心圈），色弱友好。
 - 右下角色点四段纯色：0–25% 绿 `#5BAE84`、25–50% 黄 `#DFC25E`、50–75% 橙 `#E0A355`、75–100% 正红 `#FF2D2D`，仅「等下班」显示。
 - 百分比 13.5pt 系统常规体、右对齐固定 2pt 边距；描边 `NSColor.controlTextColor` 适配深浅，仅值变化时 `needsDisplay`。
-- 绘制参数由纯函数输出：`ringSegments` / `ringDotColor` / `ringDotGeometry` / `menuPercentText`。详见 [进度环设计](docs/plans/2026-11-10-菜单栏进度环-design.md)。
+- 绘制参数由纯函数输出：`ringSegments` / `ringDotColor` / `ringDotGeometry` / `menuPercentText`。详见 [菜单栏进度环](docs/菜单栏进度环.md)。
 
 ### 设置面板
 
