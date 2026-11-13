@@ -135,7 +135,7 @@ graph TD
 
 | 分组 | 字段 |
 | --- | --- |
-| 作息 | `start` / `end`（HH:mm）、`workdays`（0=日…6=六）、`breakEnabled` / `breakStart` / `breakEnd`、`dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假） |
+| 作息 | `start` / `end`（HH:mm，全局默认）、`workdays`（0=日…6=六）、`breakEnabled` / `breakStart` / `breakEnd`、`dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）、`schedules` / `weekdayRules` / `dateOverrides`（通用作息规则，见 [作息规则](docs/作息规则.md)） |
 | 悬浮窗 | `showPanel`、`compact`、`alwaysOnTop`、`panelOpacity`、`panelOrigin`、`collapsed` |
 | 菜单栏 | `menuStyle`（0 完整 / 1 精简 / 2 进度环）、`menuPercent` |
 | 外观 | `theme`（0 跟随 / 1 深 / 2 浅） |
@@ -223,7 +223,7 @@ graph LR
 | 宿主 | AppKit 类型 | 内容 | 层级 / 特性 | 交互 |
 | --- | --- | --- | --- | --- |
 | 菜单栏项 | `NSStatusItem` → `NSStatusBarButton` | `RingStatusView` 作为 button 子视图 | `layer 25`，常驻 | 左键开 Popover，右键开 `NSMenu`，悬停显示详情 |
-| 设置面板 | `NSPopover`（330×440） | `MenuView` | 瞬时、失焦自动关闭 | 3 个 Tab + 固定底栏 |
+| 设置面板 | `NSPopover`（330×480） | `MenuView` | 瞬时、失焦自动关闭 | 3 个 Tab + 固定底栏 |
 | 悬浮窗 | `NSPanel`（`FloatingPanel`） | `PanelRoot` | `.floating` / `.canJoinAllSpaces` / `.nonactivatingPanel` / `isMovableByWindowBackground` | 可拖动、右键菜单、可收缩成 46×30 |
 | 右键菜单 | `NSMenu` | 系统菜单项 | 由 `buildContextMenu()` 构建 | 隐身 / 收缩 / 设置 / 退出 |
 
@@ -245,7 +245,7 @@ graph LR
 | Tab | 内容 |
 | --- | --- |
 | 总览 | 大号倒计时、进度条 + 百分比、状态说明、快捷键提示 |
-| 作息 | 上下班时间、工作日、午休、节假日 / 调休（`DisclosureGroup`） |
+| 作息 | 上下班时间、**作息方案与每周规则**（默认折叠）、工作日与午休、节假日 / 调休（`DisclosureGroup`） |
 | 显示 | 悬浮窗 / 菜单栏 / 外观三张 `SettingsCard`；「高级」折叠收纳置顶、提示音、登录自启、收缩、隐身 30 分 |
 
 - 分组标题在卡片外，卡片白底细边框 + `CardSeparator` 行间细线（Cursor 设置页风格）。

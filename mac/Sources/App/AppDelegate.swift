@@ -160,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.animates = true
         let controller = NSHostingController(rootView: AnyView(MenuView().environmentObject(store)))
         popover.contentViewController = controller
-        popover.contentSize = NSSize(width: 330, height: 440)
+        popover.contentSize = NSSize(width: 330, height: 480)
         popover.delegate = self
     }
 

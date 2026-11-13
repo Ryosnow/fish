@@ -2,6 +2,22 @@
 
 import Foundation
 
+/// 一天的作息值（规则里直接存值，不引用方案 id）
+struct DaySchedule: Codable, Equatable {
+    var start: String
+    var end: String
+    init(_ start: String, _ end: String) { self.start = start; self.end = end }
+}
+
+/// 用户命名的作息方案，纯模板：配置规则时把值拷进规则
+struct WorkSchedule: Codable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var start: String
+    var end: String
+    var schedule: DaySchedule { DaySchedule(start, end) }   // 计算属性，不参与 Codable
+}
+
 struct Prefs: Codable {
     var start: String = "09:00"            // 上班时间 HH:mm
     var end: String = "18:00"              // 下班时间 HH:mm
@@ -24,6 +40,10 @@ struct Prefs: Codable {
     var breakStart: String? = "12:00"
     var breakEnd: String? = "13:00"
     var dayOverrides: [String: Int] = [:] // "yyyy-MM-dd": 1 补班 / 0 放假
+    // 通用作息规则：方案库 / 星期规则 / 日期覆盖（旧配置缺省时为空，行为不变）
+    var schedules: [WorkSchedule] = []
+    var weekdayRules: [String: DaySchedule] = [:]  // "0"=日 ... "6"=六
+    var dateOverrides: [String: DaySchedule] = [:] // "yyyy-MM-dd"
     var menuStyle: Int = 2               // 菜单栏：0 完整 / 1 精简 / 2 进度环（默认）
     var menuPercent: Bool = true         // 进度环右侧显示百分比进度
 
@@ -31,7 +51,7 @@ struct Prefs: Codable {
         case start, end, workdays, showPanel, compact, alwaysOnTop, sound, theme,
              launchAtLogin, panelOpacity, panelOrigin, palette, customHex,
              collapsed, stealth, stealthUntil, breakEnabled, breakStart, breakEnd,
-             dayOverrides, menuStyle, menuPercent
+             dayOverrides, schedules, weekdayRules, dateOverrides, menuStyle, menuPercent
     }
 
     init() {}
@@ -59,6 +79,9 @@ struct Prefs: Codable {
         breakStart = try c.decodeIfPresent(String.self, forKey: .breakStart) ?? "12:00"
         breakEnd = try c.decodeIfPresent(String.self, forKey: .breakEnd) ?? "13:00"
         dayOverrides = try c.decodeIfPresent([String: Int].self, forKey: .dayOverrides) ?? [:]
+        schedules = try c.decodeIfPresent([WorkSchedule].self, forKey: .schedules) ?? []
+        weekdayRules = try c.decodeIfPresent([String: DaySchedule].self, forKey: .weekdayRules) ?? [:]
+        dateOverrides = try c.decodeIfPresent([String: DaySchedule].self, forKey: .dateOverrides) ?? [:]
         menuStyle = try c.decodeIfPresent(Int.self, forKey: .menuStyle) ?? 2
         menuPercent = try c.decodeIfPresent(Bool.self, forKey: .menuPercent) ?? true
     }
@@ -76,6 +99,21 @@ struct Prefs: Codable {
         let b1 = hhmm(p.breakStart ?? "12:00"), b2 = hhmm(p.breakEnd ?? "13:00")
         if b1.0 * 60 + b1.1 >= b2.0 * 60 + b2.1 { p.breakStart = "12:00"; p.breakEnd = "13:00" }
         p.dayOverrides = p.dayOverrides.filter { $0.key.count == 10 && ($0.value == 0 || $0.value == 1) }
+        // 通用作息规则：校验 HH:mm 与 key，非法项直接剔除，回落全局默认
+        func validTime(_ s: String) -> Bool {
+            let t = hhmm(s)
+            return t.0 >= 0 && t.0 < 24 && t.1 >= 0 && t.1 < 60
+        }
+        p.schedules = p.schedules.filter {
+            !$0.id.isEmpty && !$0.name.isEmpty && validTime($0.start) && validTime($0.end)
+        }
+        p.weekdayRules = p.weekdayRules.filter {
+            guard let w = Int($0.key), (0...6).contains(w) else { return false }
+            return validTime($0.value.start) && validTime($0.value.end)
+        }
+        p.dateOverrides = p.dateOverrides.filter {
+            $0.key.count == 10 && validTime($0.value.start) && validTime($0.value.end)
+        }
         if p.menuStyle < 0 || p.menuStyle > 2 { p.menuStyle = 2 }
         return p
     }

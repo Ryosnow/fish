@@ -14,6 +14,23 @@ struct MenuView: View {
     @ScaledMetric(relativeTo: .largeTitle) private var overviewDigits: CGFloat = 40
     @ScaledMetric(relativeTo: .title3) private var pctSize: CGFloat = 20
 
+    // 通用作息规则的表单状态（时间均为中性默认值，用户自行填写）
+    @State private var newScheduleName = ""
+    @State private var newScheduleStart = dateFromHHMM("09:00")
+    @State private var newScheduleEnd = dateFromHHMM("18:00")
+    @State private var newRuleWeekday = 1
+    @State private var newRuleScheduleId = ""
+    @State private var newRuleStart = dateFromHHMM("09:00")
+    @State private var newRuleEnd = dateFromHHMM("18:00")
+    @State private var todayEnd = dateFromHHMM("18:00")
+
+    private func todaySourceText(_ now: Date, _ p: Prefs) -> String {
+        if p.dateOverrides[dayKey(now)] != nil { return "今天已临时调整，不影响其它日期" }
+        let w = Calendar.current.component(.weekday, from: now) - 1
+        if p.weekdayRules[String(w)] != nil { return "来自每周规则，自动生效" }
+        return "跟随全局默认作息"
+    }
+
     var body: some View {
         let st = store.state
         let color = paletteColor(store.prefs)
@@ -62,7 +79,7 @@ struct MenuView: View {
                     if tab == 0 {
                         overview(st: st, color: color)
                     } else if tab == 1 {
-                        schedule(color: color)
+                        scheduleTab(color: color)
                     } else {
                         appearance()
                     }
@@ -81,7 +98,7 @@ struct MenuView: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
         }
-        .frame(width: 330, height: 440)
+        .frame(width: 330, height: 480)
         .background(PanelColor.background)
         .preferredColorScheme(preferredScheme(store.prefs.theme))
     }
@@ -109,6 +126,39 @@ struct MenuView: View {
             }
             Text(st.sub).font(.caption).foregroundStyle(PanelColor.secondary).lineLimit(2)
 
+            SettingsCard("今天下班时间") {
+                let sched = schedule(for: store.now, store.prefs)
+                HStack {
+                    Text("当前").font(.subheadline)
+                    Spacer()
+                    Text(sched.end).font(.subheadline).monospacedDigit()
+                }
+                Text(todaySourceText(store.now, store.prefs))
+                    .font(.caption).foregroundStyle(PanelColor.secondary)
+                HStack(spacing: 8) {
+                    Menu("用方案调整") {
+                        ForEach(store.prefs.schedules) { s in
+                            Button(s.name) { store.setTodaySchedule(s.schedule) }
+                        }
+                    }
+                    .disabled(store.prefs.schedules.isEmpty)
+                    Button("恢复规则") { store.clearTodayOverride() }
+                        .disabled(store.prefs.dateOverrides[dayKey(store.now)] == nil)
+                }
+                .padding(.top, 2)
+                DisclosureGroup("自定义时间") {
+                    HStack {
+                        DatePicker("", selection: $todayEnd, displayedComponents: .hourAndMinute)
+                            .labelsHidden().fixedSize()
+                        Button("应用") {
+                            let s = schedule(for: store.now, store.prefs)
+                            store.setTodaySchedule(DaySchedule(s.start, hhmmString(todayEnd)))
+                        }
+                    }
+                    .padding(.top, 6)
+                }
+            }
+
             Divider()
             Text("⌃⌥⌘H 一键隐身 / 恢复 · 右键菜单栏可打开菜单")
                 .font(.caption).foregroundStyle(PanelColor.secondary)
@@ -117,7 +167,7 @@ struct MenuView: View {
 
     // MARK: 作息
 
-    private func schedule(color: Color) -> some View {
+    private func scheduleTab(color: Color) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsCard("上下班时间") {
                 HStack {
@@ -139,10 +189,133 @@ struct MenuView: View {
                     ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
                 }
                 .padding(.vertical, 6)
-                if isCrossMidnight(store.prefs) {
-                    Text("跨零点班次：\(store.prefs.start) → 次日 \(store.prefs.end)")
+                if scheduleCrossesMidnight(for: store.now, store.prefs) {
+                    let todaySched = schedule(for: store.now, store.prefs)
+                    Text("跨零点班次：\(todaySched.start) → 次日 \(todaySched.end)")
                         .font(.caption).foregroundStyle(PanelColor.secondary)
                 }
+            }
+
+            DisclosureGroup("作息方案与每周规则（高级）") {
+                VStack(alignment: .leading, spacing: 12) {
+                SettingsCard("作息方案") {
+                    if store.prefs.schedules.isEmpty {
+                        Text("还没有方案。添加常用作息后，配置每周规则或今天调整时可直接选用。")
+                            .font(.caption).foregroundStyle(PanelColor.secondary)
+                    } else {
+                        ForEach(store.prefs.schedules) { s in
+                            HStack(spacing: 8) {
+                                Text(s.name).font(.subheadline).lineLimit(1)
+                                Spacer()
+                                Text("\(s.start) – \(s.end)").font(.caption).monospacedDigit()
+                                Button {
+                                    store.removeSchedule(id: s.id)
+                                } label: {
+                                    Image(systemName: "trash").font(.caption)
+                                }
+                                .buttonStyle(.plain).foregroundStyle(PanelColor.secondary)
+                                .accessibilityLabel("删除方案 \(s.name)")
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    DisclosureGroup("添加方案") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("名称，如 早收工", text: $newScheduleName)
+                                .textFieldStyle(.roundedBorder)
+                            HStack {
+                                Text("上班").font(.caption).lineLimit(1).fixedSize()
+                                DatePicker("", selection: $newScheduleStart, displayedComponents: .hourAndMinute)
+                                    .labelsHidden().fixedSize()
+                                Spacer()
+                                Text("下班").font(.caption).lineLimit(1).fixedSize()
+                                DatePicker("", selection: $newScheduleEnd, displayedComponents: .hourAndMinute)
+                                    .labelsHidden().fixedSize()
+                            }
+                            Button("添加") {
+                                let name = newScheduleName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !name.isEmpty else { return }
+                                store.addSchedule(name: name,
+                                                  start: hhmmString(newScheduleStart),
+                                                  end: hhmmString(newScheduleEnd))
+                                newScheduleName = ""
+                            }
+                        }
+                        .padding(.top, 6)
+                    }
+                }
+
+                SettingsCard("每周规则") {
+                    let keys = store.prefs.weekdayRules.keys.sorted()
+                    if keys.isEmpty {
+                        Text("未配置。可让某几天固定用另一套作息，其余跟随全局默认。")
+                            .font(.caption).foregroundStyle(PanelColor.secondary)
+                    } else {
+                        ForEach(keys, id: \.self) { k in
+                            let rule = store.prefs.weekdayRules[k]!
+                            HStack(spacing: 8) {
+                                Text("周\(dayLabels[Int(k) ?? 0] ?? k)").font(.subheadline)
+                                Spacer()
+                                Text("\(rule.start) – \(rule.end)").font(.caption).monospacedDigit()
+                                Button {
+                                    store.removeWeekdayRule(Int(k) ?? 0)
+                                } label: {
+                                    Image(systemName: "trash").font(.caption)
+                                }
+                                .buttonStyle(.plain).foregroundStyle(PanelColor.secondary)
+                                .accessibilityLabel("删除周\(dayLabels[Int(k) ?? 0] ?? k)规则")
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    DisclosureGroup("添加规则") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("星期").font(.caption)
+                                Picker("", selection: $newRuleWeekday) {
+                                    ForEach(dayOrder, id: \.self) { d in
+                                        Text("周\(dayLabels[d] ?? "")").tag(d)
+                                    }
+                                }
+                                .labelsHidden().frame(width: 110)
+                                Spacer()
+                            }
+                            HStack {
+                                Text("方案").font(.caption)
+                                Picker("", selection: $newRuleScheduleId) {
+                                    Text("自定义时间").tag("")
+                                    ForEach(store.prefs.schedules) { s in Text(s.name).tag(s.id) }
+                                }
+                                .labelsHidden().frame(width: 170)
+                                Spacer()
+                            }
+                            if newRuleScheduleId.isEmpty {
+                                HStack {
+                                    Text("上班").font(.caption).lineLimit(1).fixedSize()
+                                    DatePicker("", selection: $newRuleStart, displayedComponents: .hourAndMinute)
+                                        .labelsHidden().fixedSize()
+                                    Spacer()
+                                    Text("下班").font(.caption).lineLimit(1).fixedSize()
+                                    DatePicker("", selection: $newRuleEnd, displayedComponents: .hourAndMinute)
+                                        .labelsHidden().fixedSize()
+                                }
+                            }
+                            Button("添加规则") {
+                                let s: DaySchedule
+                                if let picked = store.prefs.schedules.first(where: { $0.id == newRuleScheduleId }) {
+                                    s = picked.schedule
+                                } else {
+                                    s = DaySchedule(hhmmString(newRuleStart), hhmmString(newRuleEnd))
+                                }
+                                store.setWeekdayRule(newRuleWeekday, s)
+                            }
+                        }
+                        .padding(.top, 6)
+                    }
+                }
+
+                }
+                .padding(.top, 8)
             }
 
             SettingsCard("工作日与午休") {

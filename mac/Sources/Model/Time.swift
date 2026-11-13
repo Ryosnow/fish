@@ -101,6 +101,21 @@ func isWorkday(_ day: Date, _ p: Prefs) -> Bool {
     return p.workdays.contains(Calendar.current.component(.weekday, from: day) - 1)
 }
 
+/// 解析某天生效的作息：当天日期覆盖 > 星期规则 > 全局默认
+func schedule(for day: Date, _ p: Prefs) -> DaySchedule {
+    if let d = p.dateOverrides[dayKey(day)] { return d }
+    let w = Calendar.current.component(.weekday, from: day) - 1
+    if let r = p.weekdayRules[String(w)] { return r }
+    return DaySchedule(p.start, p.end)
+}
+
+/// 某天作息是否跨零点（end <= start）
+func scheduleCrossesMidnight(for day: Date, _ p: Prefs) -> Bool {
+    let s = schedule(for: day, p)
+    let a = hhmm(s.start), b = hhmm(s.end)
+    return a.0 * 60 + a.1 >= b.0 * 60 + b.1
+}
+
 struct Shift {
     var day: Date
     var start: Date
@@ -133,8 +148,9 @@ func shifts(around now: Date, _ p: Prefs) -> [Shift] {
     for offset in -2...2 {
         guard let day = cal.date(byAdding: .day, value: offset, to: today),
               isWorkday(day, p) else { continue }
-        let s = dateAt(p.start, on: day)
-        var e = dateAt(p.end, on: day)
+        let sched = schedule(for: day, p)
+        let s = dateAt(sched.start, on: day)
+        var e = dateAt(sched.end, on: day)
         if e <= s { e = cal.date(byAdding: .day, value: 1, to: e) ?? e }
 
         var bs: Date? = nil, be: Date? = nil
@@ -160,7 +176,7 @@ func nextWorkStart(_ now: Date, _ p: Prefs) -> Date? {
     for i in 0...14 {
         guard let day = cal.date(byAdding: .day, value: i, to: now),
               isWorkday(day, p) else { continue }
-        let s = dateAt(p.start, on: day)
+        let s = dateAt(schedule(for: day, p).start, on: day)
         if s > now { return s }
     }
     return nil

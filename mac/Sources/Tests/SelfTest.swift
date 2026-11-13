@@ -151,14 +151,48 @@ func runSelfTest() {
     let oldJSON = "{\"start\":\"09:30\",\"end\":\"19:00\",\"compact\":true}".data(using: .utf8)!
     let decoded = try? JSONDecoder().decode(Prefs.self, from: oldJSON)
     check("旧配置向后兼容", decoded?.start == "09:30" && decoded?.palette == 0
-          && decoded?.dayOverrides.isEmpty == true && decoded?.stealth == false, "")
+          && decoded?.dayOverrides.isEmpty == true && decoded?.stealth == false
+          && decoded?.schedules.isEmpty == true && decoded?.weekdayRules.isEmpty == true
+          && decoded?.dateOverrides.isEmpty == true, "")
 
     check("登录自启状态同步 任一启用即为开",
           launchAtLoginEnabled(systemRegistered: true, plistExists: false)
           && launchAtLoginEnabled(systemRegistered: false, plistExists: true)
           && !launchAtLoginEnabled(systemRegistered: false, plistExists: false), "")
 
+    // 通用作息规则：日期覆盖 > 星期规则 > 全局默认
+    let aDay = d(2026, 11, 13, 12)
+    let wd = cal.component(.weekday, from: aDay) - 1
+    let base = cfg { $0.start = "10:00"; $0.end = "19:40"; $0.workdays = [0,1,2,3,4,5,6] }
+    check("作息规则 空规则回落全局默认", schedule(for: aDay, base) == DaySchedule("10:00", "19:40"), "")
+
+    var withWeek = base
+    withWeek.weekdayRules[String(wd)] = DaySchedule("10:00", "17:30")
+    check("作息规则 星期规则覆盖默认", schedule(for: aDay, withWeek).end == "17:30", "")
+
+    var withDate = withWeek
+    withDate.dateOverrides[dayKey(aDay)] = DaySchedule("10:00", "18:40")
+    check("作息规则 日期覆盖优先于星期", schedule(for: aDay, withDate).end == "18:40", "")
+
+    let nextDay = cal.date(byAdding: .day, value: 1, to: aDay)!
+    check("作息规则 日期覆盖不串到明天", schedule(for: nextDay, withDate).end == "19:40", "")
+
+    check("作息规则 跨零点作息",
+          scheduleCrossesMidnight(for: aDay, cfg { $0.start = "22:00"; $0.end = "06:00" }), "")
+
+    var withHoliday = withDate
+    withHoliday.dayOverrides[dayKey(aDay)] = 0
+    check("作息规则 放假仍优先于作息", !isWorkday(aDay, withHoliday), "")
+
+    let todayShift = shifts(around: aDay, withDate).first { cal.isDate($0.start, inSameDayAs: aDay) }
+    check("作息规则 shifts 使用日期覆盖的下班时间",
+          todayShift?.end == dateAt("18:40", on: aDay), "")
+
+    let encoded = try? JSONEncoder().encode(DaySchedule("10:00", "18:40"))
+    let decodedDay = encoded.flatMap { try? JSONDecoder().decode(DaySchedule.self, from: $0) }
+    check("作息规则 DaySchedule Codable 往返", decodedDay == DaySchedule("10:00", "18:40"), "")
+
     if failures > 0 { print("SELFTEST FAILED: \(failures) case(s)"); exit(1) }
-    print("SELFTEST PASSED (38 cases)")
+    print("SELFTEST PASSED (46 cases)")
 }
 

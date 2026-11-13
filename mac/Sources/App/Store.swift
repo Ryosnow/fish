@@ -82,6 +82,28 @@ final class Store: ObservableObject {
         if prefs.launchAtLogin != actual { prefs.launchAtLogin = actual }
     }
 
+    // MARK: - 通用作息规则
+
+    func addSchedule(name: String, start: String, end: String) {
+        let s = WorkSchedule(id: UUID().uuidString, name: name, start: start, end: end)
+        prefs.schedules.append(s)
+    }
+    func removeSchedule(id: String) {
+        prefs.schedules.removeAll { $0.id == id }
+    }
+    func setWeekdayRule(_ weekday: Int, _ s: DaySchedule) {
+        prefs.weekdayRules[String(weekday)] = s
+    }
+    func removeWeekdayRule(_ weekday: Int) {
+        prefs.weekdayRules.removeValue(forKey: String(weekday))
+    }
+    func setTodaySchedule(_ s: DaySchedule) {
+        prefs.dateOverrides[dayKey(Date())] = s
+    }
+    func clearTodayOverride() {
+        prefs.dateOverrides.removeValue(forKey: dayKey(Date()))
+    }
+
     func setLaunchAtLogin(_ on: Bool) {
         var ok = false
         if #available(macOS 13.0, *) {

@@ -52,7 +52,7 @@ cd 其他/OffWorkCountdown
 
 ### 设置面板
 
-- `NSPopover`（330×440），3 个 Tab（总览 / 作息 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
+- `NSPopover`（330×480），3 个 Tab（总览 / 作息 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
 - Cursor 风格：分组标题在卡片外、白底细边框卡片 + `CardSeparator` 行间细线、黑白灰配色。
 - `CheckRow` 用系统 `.toggleStyle(.checkbox)`；色板 / 工作日 / 迷你视图均为 `Button` + `.buttonStyle(.plain)`，带 VoiceOver label / value / `.isSelected`。
 - `Store.timeError` 统一在 Tab 栏下方渲染可关闭错误横幅。
@@ -70,6 +70,7 @@ cd 其他/OffWorkCountdown
 - `shifts(around:)` 生成前后班次；`end <= start` 视为次日下班（跨零点）。
 - `isWorkday()` 先查 `dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）再回落每周工作日；午休从净工时扣除。
 - `computeState(now, prefs)` 派生 `CountdownState`，是 SwiftUI 视图唯一数据源。
+- **通用作息规则**：`schedule(for:_:)` 按「当天日期覆盖 > 星期规则 > 全局默认」解析当天作息，`shifts` 与 `nextWorkStart` 都走它。方案库 / 星期规则 / 今天调整全部由用户配置，无任何硬编码时间，详见 [作息规则](docs/作息规则.md)。
 
 ### 配色与主题
 
