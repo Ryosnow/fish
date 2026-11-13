@@ -223,7 +223,7 @@ graph LR
 | 宿主 | AppKit 类型 | 内容 | 层级 / 特性 | 交互 |
 | --- | --- | --- | --- | --- |
 | 菜单栏项 | `NSStatusItem` → `NSStatusBarButton` | `RingStatusView` 作为 button 子视图 | `layer 25`，常驻 | 左键开 Popover，右键开 `NSMenu`，悬停显示详情 |
-| 设置面板 | `NSPopover`（330×420） | `MenuView` | 瞬时、失焦自动关闭 | 3 个 Tab + 固定底栏 |
+| 设置面板 | `NSPopover`（330×440） | `MenuView` | 瞬时、失焦自动关闭 | 3 个 Tab + 固定底栏 |
 | 悬浮窗 | `NSPanel`（`FloatingPanel`） | `PanelRoot` | `.floating` / `.canJoinAllSpaces` / `.nonactivatingPanel` / `isMovableByWindowBackground` | 可拖动、右键菜单、可收缩成 46×30 |
 | 右键菜单 | `NSMenu` | 系统菜单项 | 由 `buildContextMenu()` 构建 | 隐身 / 收缩 / 设置 / 退出 |
 

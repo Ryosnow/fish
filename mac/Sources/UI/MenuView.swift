@@ -81,7 +81,7 @@ struct MenuView: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
         }
-        .frame(width: 330, height: 420)
+        .frame(width: 330, height: 440)
         .background(PanelColor.background)
         .preferredColorScheme(preferredScheme(store.prefs.theme))
     }
@@ -120,19 +120,25 @@ struct MenuView: View {
     private func schedule(color: Color) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsCard("上下班时间") {
-                HStack(spacing: 10) {
-                    Text("上班").font(.caption).foregroundStyle(PanelColor.secondary)
+                HStack {
+                    Text("上班").font(.subheadline).lineLimit(1).fixedSize()
+                    Spacer()
                     DatePicker("", selection: Binding<Date>(
                         get: { dateFromHHMM(store.prefs.start) },
                         set: { store.setStart(hhmmString($0)) }
-                    ), displayedComponents: .hourAndMinute).labelsHidden().frame(width: 92)
+                    ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
+                }
+                .padding(.vertical, 6)
+                CardSeparator()
+                HStack {
+                    Text("下班").font(.subheadline).lineLimit(1).fixedSize()
                     Spacer()
-                    Text("下班").font(.caption).foregroundStyle(PanelColor.secondary)
                     DatePicker("", selection: Binding<Date>(
                         get: { dateFromHHMM(store.prefs.end) },
                         set: { store.setEnd(hhmmString($0)) }
-                    ), displayedComponents: .hourAndMinute).labelsHidden().frame(width: 92)
+                    ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
                 }
+                .padding(.vertical, 6)
                 if isCrossMidnight(store.prefs) {
                     Text("跨零点班次：\(store.prefs.start) → 次日 \(store.prefs.end)")
                         .font(.caption).foregroundStyle(PanelColor.secondary)
@@ -168,12 +174,14 @@ struct MenuView: View {
                         DatePicker("", selection: Binding<Date>(
                             get: { dateFromHHMM(store.prefs.breakStart ?? "12:00") },
                             set: { store.prefs.breakStart = hhmmString($0) }
-                        ), displayedComponents: .hourAndMinute).labelsHidden().frame(width: 92)
+                        ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
                         Text("至").font(.caption).foregroundStyle(PanelColor.secondary)
+                            .lineLimit(1).fixedSize()
                         DatePicker("", selection: Binding<Date>(
                             get: { dateFromHHMM(store.prefs.breakEnd ?? "13:00") },
                             set: { store.prefs.breakEnd = hhmmString($0) }
-                        ), displayedComponents: .hourAndMinute).labelsHidden().frame(width: 92)
+                        ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
+                        Spacer()
                     }
                 }
             }
@@ -183,7 +191,7 @@ struct MenuView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         DatePicker("", selection: $pickedDate, displayedComponents: .date)
-                            .labelsHidden().frame(width: 112)
+                            .labelsHidden().fixedSize()
                         Button("设为补班") { store.prefs.dayOverrides[dayKey(pickedDate)] = 1 }
                         Button("设为放假") { store.prefs.dayOverrides[dayKey(pickedDate)] = 0 }
                     }

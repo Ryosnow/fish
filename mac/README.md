@@ -52,7 +52,7 @@ cd 其他/OffWorkCountdown
 
 ### 设置面板
 
-- `NSPopover`（330×420），3 个 Tab（总览 / 作息 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
+- `NSPopover`（330×440），3 个 Tab（总览 / 作息 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
 - Cursor 风格：分组标题在卡片外、白底细边框卡片 + `CardSeparator` 行间细线、黑白灰配色。
 - `CheckRow` 用系统 `.toggleStyle(.checkbox)`；色板 / 工作日 / 迷你视图均为 `Button` + `.buttonStyle(.plain)`，带 VoiceOver label / value / `.isSelected`。
 - `Store.timeError` 统一在 Tab 栏下方渲染可关闭错误横幅。

@@ -2,6 +2,13 @@
 
 按时间倒序记录。`Info.plist` 的 `CFBundleShortVersionString` 当前为 **1.0**；这是个人小工具，不做语义化版本发布，改动以日期归档。模块级文档见 [docs/](docs/)，当前架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
+## 2026-11-13
+
+### 修复
+- 作息 Tab「上下班时间」行：`Text("上班")` / `Text("下班")` 曾被 HStack 压缩成竖排（看起来像乱码、挤占页面），改为两行布局 + `.lineLimit(1).fixedSize()`。
+- 所有 `DatePicker` 去掉强制 `.frame(width:)`，改用 `.fixedSize()` 保留内在宽度，避免时间/日期字段被裁切。
+- 设置面板高度 420pt → 440pt，适配两行布局后作息 Tab 不需要滚动。
+
 ## 2026-11-11
 
 ### 结构与工程
