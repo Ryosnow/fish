@@ -8,6 +8,7 @@
 | [界面与可访问性](界面与可访问性.md) | 黑白灰语义色、3 Tab 设置面板、系统复选框、悬浮窗白底、Dynamic Type、登录自启状态同步 | `Sources/UI/`、`Sources/App/Store.swift` |
 | [项目结构](项目结构.md) | 14 个 Swift 文件的分层、依赖规则、`main.swift` 顶层代码规则、构建与持久化 | `Sources/`、`build.sh` |
 | [作息规则](作息规则.md) | 通用配置化作息：方案库、星期规则、当天临时调整与优先级 | `Sources/Model/`、`Sources/UI/MenuView.swift` |
+| [周进度](周进度.md) | 当日 / 本周进度口径切换、周工时自动求和与手动覆盖（**已定稿设计，待实现**） | `Sources/Model/Time.swift`、`Sources/MenuBar/Ring.swift` |
 
 ## 文档体系
 
