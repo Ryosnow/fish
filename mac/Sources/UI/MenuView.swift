@@ -38,7 +38,8 @@ struct MenuView: View {
             Picker("", selection: $tab) {
                 Text("总览").tag(0)
                 Text("作息").tag(1)
-                Text("显示").tag(2)
+                Text("周进度").tag(2)
+                Text("显示").tag(3)
             }
             .labelsHidden().pickerStyle(.segmented)
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
@@ -47,7 +48,7 @@ struct MenuView: View {
 
             // 页面大标题（Cursor 设置页风格）
             HStack {
-                Text(["总览", "作息", "显示"][tab])
+                Text(["总览", "作息", "周进度", "显示"][tab])
                     .font(.title3.bold())
                     .foregroundStyle(.primary)
                 Spacer()
@@ -80,6 +81,8 @@ struct MenuView: View {
                         overview(st: st, color: color)
                     } else if tab == 1 {
                         scheduleTab(color: color)
+                    } else if tab == 2 {
+                        weekTab(color: color)
                     } else {
                         appearance()
                     }
@@ -117,14 +120,20 @@ struct MenuView: View {
             DigitsText(st: st, size: overviewDigits, color: color)
             Text(st.label).font(.caption).foregroundStyle(PanelColor.secondary)
 
+            let progress = displayProgress(store.now, store.prefs, st)
             HStack(spacing: 10) {
-                ProgressBar(value: st.progress, color: color)
-                Text("\(Int(st.progress * 100))%")
+                ProgressBar(value: progress, color: color)
+                Text(menuPercentText(progress: progress, isStealth: false,
+                                     weekMode: store.prefs.progressMode == 1) ?? "")
                     .font(.system(size: pctSize, weight: .semibold, design: .monospaced))
                     .monospacedDigit().foregroundStyle(color)
-                    .frame(minWidth: 54, alignment: .trailing)
+                    .frame(minWidth: 60, alignment: .trailing)
             }
             Text(st.sub).font(.caption).foregroundStyle(PanelColor.secondary).lineLimit(2)
+            if store.prefs.progressMode == 1 {
+                Text("进度口径：本周 · 悬浮窗仍显示当日进度")
+                    .font(.caption).foregroundStyle(PanelColor.secondary)
+            }
 
             // 默认收起；标题行仍显示当前生效的下班时间，不用展开也能看
             DisclosureGroup {
@@ -393,6 +402,74 @@ struct MenuView: View {
             }
             .font(.caption)
 
+        }
+    }
+
+    // MARK: 周进度
+
+    private func weekTab(color: Color) -> some View {
+        let p = store.prefs
+        let target = weekTargetSeconds(store.now, p)
+        let worked = weekWorkedSeconds(store.now, p)
+        let progress = weekProgress(store.now, p)
+        return VStack(alignment: .leading, spacing: 12) {
+            SettingsCard("进度口径") {
+                Picker("", selection: $store.prefs.progressMode) {
+                    Text("当日进度").tag(0)
+                    Text("本周进度").tag(1)
+                }
+                .labelsHidden().pickerStyle(.segmented)
+                Text("切换后菜单栏圆环与百分比按所选口径显示；悬浮窗始终显示当日进度。")
+                    .font(.caption).foregroundStyle(PanelColor.secondary)
+            }
+
+            SettingsCard("每周总工时") {
+                CheckRow(title: "手动指定固定工时", subtitle: "关闭时按本周作息规则自动求和",
+                         isOn: Binding<Bool>(
+                            get: { p.weeklyTargetHours != nil },
+                            set: { store.prefs.weeklyTargetHours = $0 ? 45 : nil }
+                         ))
+                if let hours = p.weeklyTargetHours {
+                    Stepper(value: Binding<Double>(
+                        get: { store.prefs.weeklyTargetHours ?? 45 },
+                        set: { store.prefs.weeklyTargetHours = $0 }
+                    ), in: 1...80, step: 0.5) {
+                        Text(String(format: "%.1f 小时", hours))
+                            .font(.subheadline).monospacedDigit()
+                    }
+                } else {
+                    Text("自动：按本周每天作息规则求和（含调休与补班），切换作息后自动更新。当前 \(String(format: "%.1f", target / 3600)) 小时。")
+                        .font(.caption).foregroundStyle(PanelColor.secondary)
+                }
+            }
+
+            SettingsCard("本周进度") {
+                HStack {
+                    Text("累计净工时").font(.subheadline)
+                    Spacer()
+                    Text(human(worked)).font(.subheadline)
+                }
+                CardSeparator()
+                HStack {
+                    Text("目标").font(.subheadline)
+                    Spacer()
+                    Text(human(target)).font(.subheadline)
+                }
+                CardSeparator()
+                HStack {
+                    Text("剩余").font(.subheadline)
+                    Spacer()
+                    Text(human(max(0, target - worked))).font(.subheadline)
+                }
+                CardSeparator()
+                HStack {
+                    Text("进度").font(.subheadline)
+                    Spacer()
+                    Text(String(format: "%.1f%%", progress * 100))
+                        .font(.subheadline).monospacedDigit()
+                }
+                ProgressBar(value: progress, color: color)
+            }
         }
     }
 

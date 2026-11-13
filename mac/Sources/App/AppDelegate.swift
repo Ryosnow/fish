@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var ringView: RingStatusView?
     private var currentMenuStyle = -1
     private var currentPercentShown = true
+    private var currentProgressMode = 0
     private var ringUnavailable = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -96,8 +97,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if let old = statusItem { NSStatusBar.system.removeStatusItem(old) }
         currentMenuStyle = style
         let showPct = store.prefs.menuPercent
-        let width: CGFloat = showPct ? 58 : 20
+        let weekMode = store.prefs.progressMode == 1
+        // 周模式百分比多一位小数（100.0%），项宽从 58pt 放宽到 68pt
+        let width: CGFloat = showPct ? (weekMode ? 68 : 58) : 20
         currentPercentShown = showPct
+        currentProgressMode = store.prefs.progressMode
         statusItem = NSStatusBar.system.statusItem(withLength: width)
         // 关键：继续用系统 NSStatusBarButton，点击反馈 / 高亮 / 菜单全部由系统绘制，
         // 自定义绘制只作为它的子视图（hitTest 返回 nil，事件仍落到 button）。
@@ -116,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         let v = RingStatusView(frame: NSRect(x: 0, y: 0, width: width, height: 22))
         v.showPercent = showPct
+        v.weekMode = weekMode
         v.autoresizingMask = [.width, .height]
         button.addSubview(v)
         ringView = v
@@ -237,26 +242,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let effective = (style == 2 && ringUnavailable) ? 1 : style
         // 百分比开关会改变视图宽度，需要重建 statusItem
         let pctChanged = effective == 2 && store.prefs.menuPercent != currentPercentShown
-        if effective != currentMenuStyle || statusItem == nil || pctChanged {
+        let modeChanged = effective == 2 && store.prefs.progressMode != currentProgressMode
+        if effective != currentMenuStyle || statusItem == nil || pctChanged || modeChanged {
             rebuildStatusItem(style: effective)
         }
 
         // 进度环：仅值变化时重绘，避免 0.5s 空转
         if let v = ringView {
-            let p = st.progress
+            let p = displayProgress(store.now, store.prefs, st)
             let brk = st.title.contains("午休")
+            let weekMode = store.prefs.progressMode == 1
             if v.phase != st.phase || abs(v.progress - p) > 0.0001 ||
-                v.isStealth != stealth || v.isBreak != brk {
+                v.isStealth != stealth || v.isBreak != brk || v.weekMode != weekMode {
                 v.phase = st.phase
                 v.progress = p
                 v.isStealth = stealth
                 v.isBreak = brk
+                v.weekMode = weekMode
                 v.needsDisplay = true
             }
+            let scope = weekMode ? "本周进度" : "当日进度"
             v.toolTip = stealth ? "下班倒计时（已隐身，点击恢复）"
-                                : st.title + " · 点击查看详情"
+                                : st.title + " · " + scope + " · 点击查看详情"
             v.showPercent = store.prefs.menuPercent
-            statusItem?.length = store.prefs.menuPercent ? 58 : 20
+            statusItem?.length = store.prefs.menuPercent ? (weekMode ? 68 : 58) : 20
             return
         }
 
@@ -309,6 +318,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         m.addItem(.separator())
         add("显示 / 隐藏悬浮窗", #selector(togglePanel), 3)
         add("紧凑模式", #selector(toggleCompact), 4)
+        add("切换进度口径（日 / 周）", #selector(toggleProgressMode), 6)
         m.addItem(.separator())
         add("设置…", #selector(openSettings), 0, ",")
         m.addItem(.separator())
@@ -376,6 +386,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func stealth30() { store.stealthFor(minutes: 30) }
     @objc private func togglePanel() { store.prefs.showPanel.toggle() }
     @objc private func toggleCompact() { store.prefs.compact.toggle() }
+    @objc private func toggleProgressMode() {
+        store.prefs.progressMode = store.prefs.progressMode == 1 ? 0 : 1
+    }
     @objc private func openSettings() { togglePopover() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

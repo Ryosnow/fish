@@ -140,6 +140,31 @@ struct Shift {
     }
 }
 
+/// 单日班次（含净工时与午休），非工作日返回 nil
+func dayShift(_ day: Date, _ p: Prefs) -> Shift? {
+    guard isWorkday(day, p) else { return nil }
+    let cal = Calendar.current
+    let sched = schedule(for: day, p)
+    let s = dateAt(sched.start, on: day)
+    var e = dateAt(sched.end, on: day)
+    if e <= s { e = cal.date(byAdding: .day, value: 1, to: e) ?? e }
+
+    var bs: Date? = nil, be: Date? = nil
+    if p.breakEnabled {
+        // 把午休时间对齐到班次内部（跨零点班次的午休可能落在凌晨）
+        func align(_ t: Date, after anchor: Date) -> Date {
+            var t = t
+            while t < anchor { t = cal.date(byAdding: .day, value: 1, to: t) ?? t }
+            return t
+        }
+        let raw1 = dateAt(p.breakStart ?? "12:00", on: day)
+        let b1 = align(raw1, after: s)
+        let b2 = align(dateAt(p.breakEnd ?? "13:00", on: day), after: b1)
+        if b1 >= s && b2 > b1 && b2 <= e { bs = b1; be = b2 }
+    }
+    return Shift(day: day, start: s, end: e, breakStart: bs, breakEnd: be)
+}
+
 /// now 前后各两天的工作日班次；end <= start 时视为次日下班（跨零点）
 func shifts(around now: Date, _ p: Prefs) -> [Shift] {
     let cal = Calendar.current
@@ -147,28 +172,62 @@ func shifts(around now: Date, _ p: Prefs) -> [Shift] {
     var result: [Shift] = []
     for offset in -2...2 {
         guard let day = cal.date(byAdding: .day, value: offset, to: today),
-              isWorkday(day, p) else { continue }
-        let sched = schedule(for: day, p)
-        let s = dateAt(sched.start, on: day)
-        var e = dateAt(sched.end, on: day)
-        if e <= s { e = cal.date(byAdding: .day, value: 1, to: e) ?? e }
-
-        var bs: Date? = nil, be: Date? = nil
-        if p.breakEnabled {
-            // 把午休时间对齐到班次内部（跨零点班次的午休可能落在凌晨）
-            func align(_ t: Date, after anchor: Date) -> Date {
-                var t = t
-                while t < anchor { t = cal.date(byAdding: .day, value: 1, to: t) ?? t }
-                return t
-            }
-            let raw1 = dateAt(p.breakStart ?? "12:00", on: day)
-            let b1 = align(raw1, after: s)
-            let b2 = align(dateAt(p.breakEnd ?? "13:00", on: day), after: b1)
-            if b1 >= s && b2 > b1 && b2 <= e { bs = b1; be = b2 }
-        }
-        result.append(Shift(day: day, start: s, end: e, breakStart: bs, breakEnd: be))
+              let sh = dayShift(day, p) else { continue }
+        result.append(sh)
     }
     return result.sorted { $0.start < $1.start }
+}
+
+// MARK: - 周进度
+
+/// 本周一 00:00（以周一为一周起点）
+func weekStart(_ now: Date) -> Date {
+    let cal = Calendar.current
+    let wd = cal.component(.weekday, from: now)   // 1=周日 ... 7=周六
+    let offset = (wd + 5) % 7                      // 距周一
+    return cal.startOfDay(for: cal.date(byAdding: .day, value: -offset, to: now)!)
+}
+
+/// 每周总工时（秒）：手动目标优先，否则按本周 7 天的作息规则自动求和
+func weekTargetSeconds(_ now: Date, _ p: Prefs) -> Double {
+    if let h = p.weeklyTargetHours, h > 0 { return h * 3600 }
+    let cal = Calendar.current
+    let monday = weekStart(now)
+    var total = 0.0
+    for i in 0..<7 {
+        guard let day = cal.date(byAdding: .day, value: i, to: monday),
+              let sh = dayShift(day, p) else { continue }
+        total += sh.totalWork
+    }
+    return total
+}
+
+/// 本周一 00:00 至今的累计净工时（秒）
+func weekWorkedSeconds(_ now: Date, _ p: Prefs) -> Double {
+    let cal = Calendar.current
+    let monday = weekStart(now)
+    var sum = 0.0
+    for i in 0..<7 {
+        guard let day = cal.date(byAdding: .day, value: i, to: monday) else { continue }
+        if cal.startOfDay(for: day) > now { break }
+        guard let sh = dayShift(day, p), sh.start < now else { continue }
+        let until = min(now, sh.end)
+        let elapsed = until.timeIntervalSince(sh.start) - sh.breakElapsed(at: until)
+        sum += max(0, elapsed)
+    }
+    return sum
+}
+
+/// 周进度 0...1；目标为 0 时返回 0
+func weekProgress(_ now: Date, _ p: Prefs) -> Double {
+    let target = weekTargetSeconds(now, p)
+    guard target > 0 else { return 0 }
+    return min(max(weekWorkedSeconds(now, p) / target, 0), 1)
+}
+
+/// 显示口径：0 当日 / 1 本周
+func displayProgress(_ now: Date, _ p: Prefs, _ state: CountdownState) -> Double {
+    p.progressMode == 1 ? weekProgress(now, p) : state.progress
 }
 
 func nextWorkStart(_ now: Date, _ p: Prefs) -> Date? {

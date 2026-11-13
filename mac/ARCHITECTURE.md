@@ -61,9 +61,9 @@ OffWorkCountdown/
 │   │   ├── Components.swift         DigitsText / ProgressBar
 │   │   ├── PanelRoot.swift          悬浮窗内容（完整态 / 收缩态 / 右键菜单）
 │   │   ├── SettingsComponents.swift CardSeparator / SettingsCard / CheckRow
-│   │   └── MenuView.swift           设置面板（3 个 Tab）
+│   │   └── MenuView.swift           设置面板（4 个 Tab）
 │   └── Tests/
-│       └── SelfTest.swift           38 项纯函数回归自测
+│       └── SelfTest.swift           58 项纯函数回归自测
 ├── Info.plist
 ├── make_icon.py
 ├── build.sh
@@ -111,7 +111,7 @@ graph TD
 | --- | --- |
 | `--version-check` | 打印版本与系统版本，验证可执行文件 / 动态库可加载 |
 | `--hotkey-check` | 注册一次全局热键，检测是否被占用 |
-| `--selftest` | 跑 `runSelfTest()` 的 38 项纯函数断言，失败退出非 0 |
+| `--selftest` | 跑 `runSelfTest()` 的 58 项纯函数断言，失败退出非 0 |
 | 默认 | `NSApplication.shared` → `AppDelegate` → `setActivationPolicy(.accessory)` → `app.run()` |
 
 > **为什么入口这么瘦**：Swift 规定顶层可执行语句只能出现在 `main.swift`。旧版把 1798 行库代码和入口混在一起，全局变量按源码顺序初始化，`--selftest` 曾因 `QUOTES` 未初始化而 segfault。拆分后全局常量由编译器按需惰性初始化，该陷阱消失。详见 [项目结构](docs/项目结构.md)。
@@ -135,7 +135,7 @@ graph TD
 
 | 分组 | 字段 |
 | --- | --- |
-| 作息 | `start` / `end`（HH:mm，全局默认）、`workdays`（0=日…6=六）、`breakEnabled` / `breakStart` / `breakEnd`、`dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）、`schedules` / `weekdayRules` / `dateOverrides`（通用作息规则，见 [作息规则](docs/作息规则.md)） |
+| 作息 | `start` / `end`（HH:mm，全局默认）、`workdays`（0=日…6=六）、`breakEnabled` / `breakStart` / `breakEnd`、`dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）、`schedules` / `weekdayRules` / `dateOverrides`（作息规则）、`progressMode` / `weeklyTargetHours`（进度口径，见 [周进度](docs/周进度.md)） |
 | 悬浮窗 | `showPanel`、`compact`、`alwaysOnTop`、`panelOpacity`、`panelOrigin`、`collapsed` |
 | 菜单栏 | `menuStyle`（0 完整 / 1 精简 / 2 进度环）、`menuPercent` |
 | 外观 | `theme`（0 跟随 / 1 深 / 2 浅） |
@@ -170,7 +170,7 @@ graph TD
 | `ringDotGeometry(ringCenter:ringRadius:)` | 色点位置与半径（压住环右下角一小段） |
 | `menuPercentText(progress:isStealth:)` | `41%` 文案，隐身时 `nil`，`100%` 右对齐不越界 |
 
-把绘制参数抽成纯数据，是为了让 38 项自测能覆盖形态与边界，而不必渲染视图。
+把绘制参数抽成纯数据，是为了让 58 项自测能覆盖形态与边界，而不必渲染视图。
 
 ---
 
@@ -223,7 +223,7 @@ graph LR
 | 宿主 | AppKit 类型 | 内容 | 层级 / 特性 | 交互 |
 | --- | --- | --- | --- | --- |
 | 菜单栏项 | `NSStatusItem` → `NSStatusBarButton` | `RingStatusView` 作为 button 子视图 | `layer 25`，常驻 | 左键开 Popover，右键开 `NSMenu`，悬停显示详情 |
-| 设置面板 | `NSPopover`（330×480） | `MenuView` | 瞬时、失焦自动关闭 | 3 个 Tab + 固定底栏 |
+| 设置面板 | `NSPopover`（330×480） | `MenuView` | 瞬时、失焦自动关闭 | 4 个 Tab + 固定底栏 |
 | 悬浮窗 | `NSPanel`（`FloatingPanel`） | `PanelRoot` | `.floating` / `.canJoinAllSpaces` / `.nonactivatingPanel` / `isMovableByWindowBackground` | 可拖动、右键菜单、可收缩成 46×30 |
 | 右键菜单 | `NSMenu` | 系统菜单项 | 由 `buildContextMenu()` 构建 | 隐身 / 收缩 / 设置 / 退出 |
 
@@ -240,12 +240,13 @@ graph LR
 
 ## 9. 设置面板结构
 
-`MenuView` 按 **渐进式披露** 收敛成 3 个 Tab（避免一屏堆 14 个控件）：
+`MenuView` 按 **渐进式披露** 收敛成 4 个 Tab（避免一屏堆满控件）：
 
 | Tab | 内容 |
 | --- | --- |
 | 总览 | 大号倒计时、进度条 + 百分比、状态说明、**今天下班时间（默认收起，标题显示当前时间）**、快捷键提示 |
 | 作息 | 上下班时间、**作息方案与每周规则**（默认折叠）、工作日与午休、节假日 / 调休（`DisclosureGroup`） |
+| 周进度 | 进度口径（当日 / 本周）、每周总工时（自动求和 / 手动固定）、本周累计净工时 / 目标 / 剩余 / 进度条 |
 | 显示 | 悬浮窗 / 菜单栏 / 外观三张 `SettingsCard`；「高级」折叠收纳置顶、提示音、登录自启、收缩、隐身 30 分 |
 
 - 分组标题在卡片外，卡片白底细边框 + `CardSeparator` 行间细线（Cursor 设置页风格）。

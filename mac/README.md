@@ -24,11 +24,11 @@ cd 其他/OffWorkCountdown
 | `Sources/Model/` | `Prefs.swift`（偏好模型与向后兼容解码）、`Time.swift`（时间工具、状态模型、语录池、班次与进度纯计算） |
 | `Sources/MenuBar/` | `Ring.swift`（`RingStatusView` 自绘进度环、色点与百分比绘制参数） |
 | `Sources/UI/` | `Theme.swift`（语义色）、`Components.swift`、`PanelRoot.swift`、`SettingsComponents.swift`、`MenuView.swift` |
-| `Sources/Tests/` | `SelfTest.swift`（38 项纯函数回归自测） |
+| `Sources/Tests/` | `SelfTest.swift`（58 项纯函数回归自测） |
 | `Info.plist` | `LSUIElement = true`（不显示 Dock 图标）等 |
 | `make_icon.py` | 纯标准库生成 1024px PNG 图标（无第三方依赖） |
 | `build.sh` | 生成图标 → 收集 `Sources/**/*.swift` 编译 → 打包 → 签名 → 三项自检 |
-| `docs/` | 3 份模块级项目文档（进度环 / 界面与可访问性 / 项目结构），见 [索引](docs/README.md) |
+| `docs/` | 5 份模块级项目文档（进度环 / 界面与可访问性 / 项目结构 / 作息规则 / 周进度），见 [索引](docs/README.md) |
 
 拆分要点：`main.swift` 曾 1798 行，顶层代码与库代码混放导致全局变量按源码顺序初始化、历史 `--selftest` 因此崩溃；拆分后各文件只放声明、`private` 顶层声明与使用者同文件，`build.sh` 用 `find` 收集全部 `.swift`（Swift 按文件名识别 `main.swift` 为入口，顺序无关）。详见 [项目结构](docs/项目结构.md)。
 
@@ -52,7 +52,7 @@ cd 其他/OffWorkCountdown
 
 ### 设置面板
 
-- `NSPopover`（330×480），3 个 Tab（总览 / 作息 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
+- `NSPopover`（330×480），4 个 Tab（总览 / 作息 / 周进度 / 显示），低频项进「高级」折叠；底栏固定「立即隐身 / 退出」。
 - Cursor 风格：分组标题在卡片外、白底细边框卡片 + `CardSeparator` 行间细线、黑白灰配色。
 - `CheckRow` 用系统 `.toggleStyle(.checkbox)`；色板 / 工作日 / 迷你视图均为 `Button` + `.buttonStyle(.plain)`，带 VoiceOver label / value / `.isSelected`。
 - `Store.timeError` 统一在 Tab 栏下方渲染可关闭错误横幅。
@@ -70,6 +70,7 @@ cd 其他/OffWorkCountdown
 - `shifts(around:)` 生成前后班次；`end <= start` 视为次日下班（跨零点）。
 - `isWorkday()` 先查 `dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）再回落每周工作日；午休从净工时扣除。
 - `computeState(now, prefs)` 派生 `CountdownState`，是 SwiftUI 视图唯一数据源。
+- **周进度**：`weekTargetSeconds` / `weekWorkedSeconds` / `weekProgress` 按「本周累计净工时 ÷ 每周总工时」算进度，目标默认从作息规则自动求和、可手动覆盖；`displayProgress` 按 `progressMode` 给菜单栏环与百分比切换口径，悬浮窗保持当日。详见 [周进度](docs/周进度.md)
 - **通用作息规则**：`schedule(for:_:)` 按「当天日期覆盖 > 星期规则 > 全局默认」解析当天作息，`shifts` 与 `nextWorkStart` 都走它。方案库 / 星期规则 / 今天调整全部由用户配置，无任何硬编码时间，详见 [作息规则](docs/作息规则.md)。
 
 ### 配色与主题
@@ -88,7 +89,7 @@ cd 其他/OffWorkCountdown
 | 隐身 | `stealth` / `stealthUntil`；`tick()` 到期自动恢复，手动隐身不跨重启 |
 | 单实例 | 启动时检测同名 bundle 已运行则自退 |
 | 持久化 | `UserDefaults` 单个 JSON（key `com.rumor.offwork-countdown.prefs.v1`），`Prefs.init(from:)` 用 `decodeIfPresent` 向后兼容；窗口位置一并保存 |
-| 自检 | `--version-check` / `--hotkey-check` / `--selftest`（38 项纯函数回归，失败退出非 0），`build.sh` 自动跑三项 |
+| 自检 | `--version-check` / `--hotkey-check` / `--selftest`（58 项纯函数回归，失败退出非 0），`build.sh` 自动跑三项 |
 
 ## 修改默认值
 

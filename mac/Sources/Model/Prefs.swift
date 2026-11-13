@@ -46,12 +46,16 @@ struct Prefs: Codable {
     var dateOverrides: [String: DaySchedule] = [:] // "yyyy-MM-dd"
     var menuStyle: Int = 2               // 菜单栏：0 完整 / 1 精简 / 2 进度环（默认）
     var menuPercent: Bool = true         // 进度环右侧显示百分比进度
+    // 进度口径：0 当日 / 1 本周；周目标 nil = 自动从作息规则求和
+    var progressMode: Int = 0
+    var weeklyTargetHours: Double? = nil
 
     private enum CodingKeys: String, CodingKey {
         case start, end, workdays, showPanel, compact, alwaysOnTop, sound, theme,
              launchAtLogin, panelOpacity, panelOrigin, palette, customHex,
              collapsed, stealth, stealthUntil, breakEnabled, breakStart, breakEnd,
-             dayOverrides, schedules, weekdayRules, dateOverrides, menuStyle, menuPercent
+             dayOverrides, schedules, weekdayRules, dateOverrides, menuStyle, menuPercent,
+             progressMode, weeklyTargetHours
     }
 
     init() {}
@@ -84,6 +88,8 @@ struct Prefs: Codable {
         dateOverrides = try c.decodeIfPresent([String: DaySchedule].self, forKey: .dateOverrides) ?? [:]
         menuStyle = try c.decodeIfPresent(Int.self, forKey: .menuStyle) ?? 2
         menuPercent = try c.decodeIfPresent(Bool.self, forKey: .menuPercent) ?? true
+        progressMode = try c.decodeIfPresent(Int.self, forKey: .progressMode) ?? 0
+        weeklyTargetHours = try c.decodeIfPresent(Double.self, forKey: .weeklyTargetHours)
     }
 
     func validated() -> Prefs {
@@ -115,6 +121,8 @@ struct Prefs: Codable {
             $0.key.count == 10 && validTime($0.value.start) && validTime($0.value.end)
         }
         if p.menuStyle < 0 || p.menuStyle > 2 { p.menuStyle = 2 }
+        if p.progressMode != 0 && p.progressMode != 1 { p.progressMode = 0 }
+        if let h = p.weeklyTargetHours, !(h > 0 && h <= 168) { p.weeklyTargetHours = nil }
         return p
     }
 }

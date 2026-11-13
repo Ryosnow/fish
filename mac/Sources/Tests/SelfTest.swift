@@ -147,13 +147,18 @@ func runSelfTest() {
     let pctX = round(58 - 2 - pctWidth)
     check("百分比文字右对齐不越界", pctX >= 19 && pctX + pctWidth <= 57,
           "x=\(Int(pctX)) w=\(Int(pctWidth))")
+    let weekWidth = ("100.0%" as NSString).size(withAttributes: [.font: pctFont]).width
+    let weekX = round(68 - 2 - weekWidth)
+    check("周进度 100.0% 右对齐不越界 68pt", weekX >= 19 && weekX + weekWidth <= 67,
+          "x=\(Int(weekX)) w=\(Int(weekWidth))")
 
     let oldJSON = "{\"start\":\"09:30\",\"end\":\"19:00\",\"compact\":true}".data(using: .utf8)!
     let decoded = try? JSONDecoder().decode(Prefs.self, from: oldJSON)
     check("旧配置向后兼容", decoded?.start == "09:30" && decoded?.palette == 0
           && decoded?.dayOverrides.isEmpty == true && decoded?.stealth == false
           && decoded?.schedules.isEmpty == true && decoded?.weekdayRules.isEmpty == true
-          && decoded?.dateOverrides.isEmpty == true, "")
+          && decoded?.dateOverrides.isEmpty == true
+          && decoded?.progressMode == 0 && decoded?.weeklyTargetHours == nil, "")
 
     check("登录自启状态同步 任一启用即为开",
           launchAtLoginEnabled(systemRegistered: true, plistExists: false)
@@ -192,7 +197,42 @@ func runSelfTest() {
     let decodedDay = encoded.flatMap { try? JSONDecoder().decode(DaySchedule.self, from: $0) }
     check("作息规则 DaySchedule Codable 往返", decodedDay == DaySchedule("10:00", "18:40"), "")
 
+    // 周进度：周一 2026-11-09
+    let mon = d(2026, 11, 9, 15)   // 周一 15:00
+    let base9 = cfg { $0.start = "09:00"; $0.end = "18:00"; $0.workdays = [1,2,3,4,5]; $0.breakEnabled = false }
+    check("周进度 周目标自动求和 45h", abs(weekTargetSeconds(mon, base9) - 45 * 3600) < 1, "")
+
+    var manual = base9; manual.weeklyTargetHours = 40
+    check("周进度 手动目标覆盖自动值", abs(weekTargetSeconds(mon, manual) - 40 * 3600) < 1, "")
+
+    let p3 = cfg {
+        $0.start = "10:00"; $0.end = "19:00"; $0.workdays = [1,2,3,4,5]
+        $0.breakEnabled = true; $0.breakStart = "12:00"; $0.breakEnd = "14:00"
+        $0.weeklyTargetHours = 45
+    }
+    check("周进度 周一15点净工作3h", abs(weekWorkedSeconds(mon, p3) - 3 * 3600) < 1, "")
+    check("周进度 3h/45h 约6.7%", abs(weekProgress(mon, p3) - 3.0 / 45.0) < 0.0001, "")
+
+    var withExtra = base9; withExtra.dayOverrides["2026-11-14"] = 1
+    check("周进度 补班增加周目标", abs(weekTargetSeconds(mon, withExtra) - 54 * 3600) < 1, "")
+    var withOff = base9; withOff.dayOverrides["2026-11-09"] = 0
+    check("周进度 放假减少周目标", abs(weekTargetSeconds(mon, withOff) - 36 * 3600) < 1, "")
+
+    let cross = cfg { $0.start = "22:00"; $0.end = "06:00"; $0.workdays = [1,2,3,4,5]; $0.breakEnabled = false }
+    check("周进度 跨零点班次计入目标", abs(weekTargetSeconds(mon, cross) - 40 * 3600) < 1, "")
+
+    let noWork = cfg { $0.workdays = [] }
+    check("周进度 零目标返回0", weekProgress(mon, noWork) == 0, "")
+    check("周进度 超100% clamp", weekProgress(d(2026, 11, 13, 23), p3) <= 1, "")
+
+    let st = computeState(mon, p3)
+    var modeP = p3; modeP.progressMode = 1
+    check("周进度 displayProgress 按口径切换",
+          abs(displayProgress(mon, p3, st) - st.progress) < 0.0001 &&
+          abs(displayProgress(mon, modeP, st) - weekProgress(mon, modeP)) < 0.0001, "")
+    check("周进度 周起点为周一", cal.component(.weekday, from: weekStart(d(2026, 11, 13, 12))) == 2, "")
+
     if failures > 0 { print("SELFTEST FAILED: \(failures) case(s)"); exit(1) }
-    print("SELFTEST PASSED (46 cases)")
+    print("SELFTEST PASSED (58 cases)")
 }
 

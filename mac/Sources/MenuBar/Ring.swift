@@ -36,11 +36,11 @@ func ringDotGeometry(ringCenter: CGPoint, ringRadius: CGFloat) -> RingDotGeometr
         radius: 3.0)             // 直径 6pt（原 4.4pt）
 }
 
-/// 进度环右侧的百分比文字；隐身时不显示
-func menuPercentText(progress: Double, isStealth: Bool) -> String? {
+/// 进度环右侧的百分比文字；隐身时不显示。周模式用 1 位小数，日模式用整数
+func menuPercentText(progress: Double, isStealth: Bool, weekMode: Bool = false) -> String? {
     guard !isStealth else { return nil }
     let p = min(max(progress, 0), 1)
-    return "\(Int(p * 100))%"
+    return weekMode ? String(format: "%.1f%%", p * 100) : "\(Int(p * 100))%"
 }
 
 /// 绘制参数（纯数据，便于自测）
@@ -74,6 +74,7 @@ final class RingStatusView: NSView {
     var isStealth = false
     var isBreak = false
     var showPercent = true
+    var weekMode = false   // 周进度：环改为纯进度弧，不受当日 phase 形态影响
 
     // 只负责画内容；点击 / 高亮 / 菜单全部交给系统的 NSStatusBarButton
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -81,7 +82,14 @@ final class RingStatusView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let spec = ringSegments(phase: phase, progress: progress, isStealth: isStealth)
+        // 周模式下环只表达周进度：不画「已下班满环 / 休息日虚线」等当日状态形态
+        let spec: RingSpec
+        if weekMode && !isStealth {
+            spec = RingSpec(baseAlpha: 0.20, progress: min(max(progress, 0), 1),
+                            dashed: false, filled: true, centerDot: false)
+        } else {
+            spec = ringSegments(phase: phase, progress: progress, isStealth: isStealth)
+        }
         let color = NSColor.controlTextColor   // 自动适配深浅模式
         // 环固定在左侧 x=10：纯环时(宽20)居中，带百分比时(宽48)靠左
         let c = CGPoint(x: 10, y: bounds.midY)
@@ -127,7 +135,8 @@ final class RingStatusView: NSView {
         }
 
         // 右下角进度阶段色点（绿 → 橙 → 红），最后绘制以盖住环的一小段
-        if let dot = ringDotColor(phase: phase, progress: progress, isStealth: isStealth) {
+        if let dot = ringDotColor(phase: weekMode ? .working : phase,
+                                  progress: progress, isStealth: isStealth) {
             let geo = ringDotGeometry(ringCenter: c, ringRadius: r)
             let rad = geo.radius
             NSColor(red: CGFloat(dot.r), green: CGFloat(dot.g),
@@ -137,7 +146,8 @@ final class RingStatusView: NSView {
         }
 
         // 右侧百分比进度（参考其他菜单栏 app 的「图标 + 百分比」）
-        if showPercent, let text = menuPercentText(progress: progress, isStealth: isStealth) {
+        if showPercent, let text = menuPercentText(progress: progress, isStealth: isStealth,
+                                                    weekMode: weekMode) {
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: 13.5, weight: .regular),
                 .foregroundColor: color
