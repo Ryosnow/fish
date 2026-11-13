@@ -126,36 +126,40 @@ struct MenuView: View {
             }
             Text(st.sub).font(.caption).foregroundStyle(PanelColor.secondary).lineLimit(2)
 
-            SettingsCard("今天下班时间") {
-                let sched = schedule(for: store.now, store.prefs)
+            // 默认收起；标题行仍显示当前生效的下班时间，不用展开也能看
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(todaySourceText(store.now, store.prefs))
+                        .font(.caption).foregroundStyle(PanelColor.secondary)
+                    HStack(spacing: 8) {
+                        Menu("用方案调整") {
+                            ForEach(store.prefs.schedules) { s in
+                                Button(s.name) { store.setTodaySchedule(s.schedule) }
+                            }
+                        }
+                        .disabled(store.prefs.schedules.isEmpty)
+                        Button("恢复规则") { store.clearTodayOverride() }
+                            .disabled(store.prefs.dateOverrides[dayKey(store.now)] == nil)
+                    }
+                    DisclosureGroup("自定义时间") {
+                        HStack {
+                            DatePicker("", selection: $todayEnd, displayedComponents: .hourAndMinute)
+                                .labelsHidden().fixedSize()
+                            Button("应用") {
+                                let s = schedule(for: store.now, store.prefs)
+                                store.setTodaySchedule(DaySchedule(s.start, hhmmString(todayEnd)))
+                            }
+                        }
+                        .padding(.top, 6)
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
                 HStack {
-                    Text("当前").font(.subheadline)
+                    Text("今天下班时间").font(.subheadline)
                     Spacer()
-                    Text(sched.end).font(.subheadline).monospacedDigit()
-                }
-                Text(todaySourceText(store.now, store.prefs))
-                    .font(.caption).foregroundStyle(PanelColor.secondary)
-                HStack(spacing: 8) {
-                    Menu("用方案调整") {
-                        ForEach(store.prefs.schedules) { s in
-                            Button(s.name) { store.setTodaySchedule(s.schedule) }
-                        }
-                    }
-                    .disabled(store.prefs.schedules.isEmpty)
-                    Button("恢复规则") { store.clearTodayOverride() }
-                        .disabled(store.prefs.dateOverrides[dayKey(store.now)] == nil)
-                }
-                .padding(.top, 2)
-                DisclosureGroup("自定义时间") {
-                    HStack {
-                        DatePicker("", selection: $todayEnd, displayedComponents: .hourAndMinute)
-                            .labelsHidden().fixedSize()
-                        Button("应用") {
-                            let s = schedule(for: store.now, store.prefs)
-                            store.setTodaySchedule(DaySchedule(s.start, hhmmString(todayEnd)))
-                        }
-                    }
-                    .padding(.top, 6)
+                    Text(schedule(for: store.now, store.prefs).end)
+                        .font(.subheadline).monospacedDigit()
                 }
             }
 
