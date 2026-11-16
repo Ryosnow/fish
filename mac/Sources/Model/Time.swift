@@ -116,28 +116,33 @@ func scheduleCrossesMidnight(for day: Date, _ p: Prefs) -> Bool {
     return a.0 * 60 + a.1 >= b.0 * 60 + b.1
 }
 
+/// 一段已对齐到班次内的休息（带名称，供状态文案使用）
+struct BreakInterval {
+    var start: Date
+    var end: Date
+    var name: String
+}
+
 struct Shift {
     var day: Date
     var start: Date
     var end: Date
-    var breakStart: Date?
-    var breakEnd: Date?
+    var breaks: [BreakInterval]
 
     var breakLength: TimeInterval {
-        guard let b = breakStart, let e = breakEnd else { return 0 }
-        return e.timeIntervalSince(b)
+        breaks.reduce(0) { $0 + $1.end.timeIntervalSince($1.start) }
     }
-    var totalWork: TimeInterval { end.timeIntervalSince(start) - breakLength }
+    var totalWork: TimeInterval { max(0, end.timeIntervalSince(start) - breakLength) }
     func breakElapsed(at now: Date) -> TimeInterval {
-        guard let b = breakStart, let e = breakEnd else { return 0 }
-        if now <= b { return 0 }
-        if now >= e { return breakLength }
-        return now.timeIntervalSince(b)
+        breaks.reduce(0.0) { sum, b in
+            if now <= b.start { return sum }
+            return sum + min(now, b.end).timeIntervalSince(b.start)
+        }
     }
-    func inBreak(_ now: Date) -> Bool {
-        guard let b = breakStart, let e = breakEnd else { return false }
-        return now >= b && now < e
+    func currentBreak(at now: Date) -> BreakInterval? {
+        breaks.first { now >= $0.start && now < $0.end }
     }
+    func inBreak(_ now: Date) -> Bool { currentBreak(at: now) != nil }
 }
 
 /// 单日班次（含净工时与午休），非工作日返回 nil
@@ -149,20 +154,34 @@ func dayShift(_ day: Date, _ p: Prefs) -> Shift? {
     var e = dateAt(sched.end, on: day)
     if e <= s { e = cal.date(byAdding: .day, value: 1, to: e) ?? e }
 
-    var bs: Date? = nil, be: Date? = nil
-    if p.breakEnabled {
-        // 把午休时间对齐到班次内部（跨零点班次的午休可能落在凌晨）
+    // 通用多段休息：每段对齐到班次、裁剪到 [start, end]、再合并重叠，避免重复扣工时
+    var intervals: [BreakInterval] = []
+    if !p.breakPeriods.isEmpty {
         func align(_ t: Date, after anchor: Date) -> Date {
             var t = t
             while t < anchor { t = cal.date(byAdding: .day, value: 1, to: t) ?? t }
             return t
         }
-        let raw1 = dateAt(p.breakStart ?? "12:00", on: day)
-        let b1 = align(raw1, after: s)
-        let b2 = align(dateAt(p.breakEnd ?? "13:00", on: day), after: b1)
-        if b1 >= s && b2 > b1 && b2 <= e { bs = b1; be = b2 }
+        for bp in p.breakPeriods where bp.enabled {
+            let b1 = align(dateAt(bp.start, on: day), after: s)
+            var b2 = align(dateAt(bp.end, on: day), after: b1)
+            if b2 <= b1 { b2 = cal.date(byAdding: .day, value: 1, to: b2) ?? b2 }
+            let cs = max(b1, s), ce = min(b2, e)
+            if ce > cs { intervals.append(BreakInterval(start: cs, end: ce, name: bp.name)) }
+        }
+        intervals.sort { $0.start < $1.start }
+        var merged: [BreakInterval] = []
+        for iv in intervals {
+            if var last = merged.last, iv.start <= last.end {
+                last.end = max(last.end, iv.end)
+                merged[merged.count - 1] = last
+            } else {
+                merged.append(iv)
+            }
+        }
+        intervals = merged
     }
-    return Shift(day: day, start: s, end: e, breakStart: bs, breakEnd: be)
+    return Shift(day: day, start: s, end: e, breaks: intervals)
 }
 
 /// now 前后各两天的工作日班次；end <= start 时视为次日下班（跨零点）
@@ -283,14 +302,18 @@ func computeState(_ now: Date, _ p: Prefs) -> CountdownState {
             if progress < 0 { progress = 0 }
             if progress > 1 { progress = 1 }
         }
-        let onBreak = sh.inBreak(now)
+        let activeBreak = sh.currentBreak(at: now)
+        let breakName = activeBreak?.name ?? "休息"
+        let activeCount = p.breakPeriods.filter { $0.enabled }.count
+        let breakTitle = activeBreak == nil ? "摸鱼进行中 🐟" : "休息中（" + breakName + "）🍚"
         return CountdownState(
-            phase: .working, title: onBreak ? "午休中 🍚" : "摸鱼进行中 🐟",
+            phase: .working, title: breakTitle,
             label: "距离下班还有", digits: digits(remain), progress: progress,
-            sub: "已工作 \(human(elapsed)) · 今日共 \(human(total))" + (p.breakEnabled ? "（已扣午休）" : ""),
-            quote: onBreak ? "午休中，先别看倒计时 🍚" : workingQuote(remain, now),
-            menu: onBreak ? "🍚 午休中" : "🕕 \(digits(remain))",
-            menuShort: onBreak ? "午休" : shortMinutes(digits(remain)))
+            sub: "已工作 \(human(elapsed)) · 今日共 \(human(total))" +
+                 (activeCount > 0 ? "（已扣 \(activeCount) 段休息）" : ""),
+            quote: activeBreak != nil ? "休息中，先别看倒计时 🍚" : workingQuote(remain, now),
+            menu: activeBreak != nil ? "🍚 休息中" : "🕕 \(digits(remain))",
+            menuShort: activeBreak != nil ? "休息" : shortMinutes(digits(remain)))
     }
 
     let lastEnd = all.filter { $0.end <= now }.map { $0.end }.max()

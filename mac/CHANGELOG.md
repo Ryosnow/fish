@@ -2,6 +2,16 @@
 
 按时间倒序记录。`Info.plist` 的 `CFBundleShortVersionString` 当前为 **1.0**；这是个人小工具，不做语义化版本发布，改动以日期归档。模块级文档见 [docs/](docs/)，当前架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
+## 2026-11-16
+
+### 新增：通用多段不计入工时的休息
+- 原「午休不计入进度」泛化为 `breakPeriods`：每段有名称 / 起止 / 开关，可任意增删（午休、晚饭、下午茶…），零预置时间。
+- `Shift` 改为多段 `breaks`，`dayShift` 按班次裁剪、合并重叠段；`totalWork` / `breakElapsed` / `currentBreak` 同步支持。
+- 状态文案 `休息中（{段名}）🍚`，`sub` 显示已扣段数；周目标与周累计净工时自动跟随扣除。
+- 旧配置 `breakEnabled/breakStart/breakEnd` 自动迁移成第一段「午休」，用户现有 12:00–14:00 不丢；删段后重启不会复活。
+- 「作息」Tab 新增「不计入工时的时段」卡片（增删 / 编辑起止 / 开关），离屏渲染确认布局完整。
+- 纯函数自测 58 → 67 项；详见 [休息时段](docs/休息时段.md)。
+
 ## 2026-11-13
 
 ### 修复

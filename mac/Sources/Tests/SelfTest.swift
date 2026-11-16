@@ -33,11 +33,13 @@ func runSelfTest() {
     let e = computeState(d(2026, 11, 2, 20, 15), cfg())
     check("下班后", e.phase == .off && e.digits == "02:15:00" && e.progress == 1, e.digits)
 
-    let withBreak = cfg { $0.breakEnabled = true }
+    let withBreak = cfg {
+        $0.breakPeriods = [BreakPeriod(id: "lunch", name: "午休", start: "12:00", end: "13:00", enabled: true)]
+    }
     let f = computeState(d(2026, 11, 2, 15, 27, 30), withBreak)
     check("午休扣减进度", abs(f.progress - 0.6823) < 0.002, String(format: "%.4f", f.progress))
     let g = computeState(d(2026, 11, 2, 12, 30), withBreak)
-    check("午休中状态", g.title.contains("午休") && g.quote.contains("午休"), g.title)
+    check("午休中状态", g.title.contains("午休") && g.quote.contains("休息"), g.title)
 
     let night = cfg { $0.start = "22:00"; $0.end = "06:00" }
     let h = computeState(d(2026, 11, 4, 2, 0), night) // 周三凌晨，属于周二的夜班
@@ -199,7 +201,7 @@ func runSelfTest() {
 
     // 周进度：周一 2026-11-09
     let mon = d(2026, 11, 9, 15)   // 周一 15:00
-    let base9 = cfg { $0.start = "09:00"; $0.end = "18:00"; $0.workdays = [1,2,3,4,5]; $0.breakEnabled = false }
+    let base9 = cfg { $0.start = "09:00"; $0.end = "18:00"; $0.workdays = [1,2,3,4,5] }
     check("周进度 周目标自动求和 45h", abs(weekTargetSeconds(mon, base9) - 45 * 3600) < 1, "")
 
     var manual = base9; manual.weeklyTargetHours = 40
@@ -207,7 +209,7 @@ func runSelfTest() {
 
     let p3 = cfg {
         $0.start = "10:00"; $0.end = "19:00"; $0.workdays = [1,2,3,4,5]
-        $0.breakEnabled = true; $0.breakStart = "12:00"; $0.breakEnd = "14:00"
+        $0.breakPeriods = [BreakPeriod(id: "lunch", name: "午休", start: "12:00", end: "14:00", enabled: true)]
         $0.weeklyTargetHours = 45
     }
     check("周进度 周一15点净工作3h", abs(weekWorkedSeconds(mon, p3) - 3 * 3600) < 1, "")
@@ -218,7 +220,7 @@ func runSelfTest() {
     var withOff = base9; withOff.dayOverrides["2026-11-09"] = 0
     check("周进度 放假减少周目标", abs(weekTargetSeconds(mon, withOff) - 36 * 3600) < 1, "")
 
-    let cross = cfg { $0.start = "22:00"; $0.end = "06:00"; $0.workdays = [1,2,3,4,5]; $0.breakEnabled = false }
+    let cross = cfg { $0.start = "22:00"; $0.end = "06:00"; $0.workdays = [1,2,3,4,5] }
     check("周进度 跨零点班次计入目标", abs(weekTargetSeconds(mon, cross) - 40 * 3600) < 1, "")
 
     let noWork = cfg { $0.workdays = [] }
@@ -232,7 +234,57 @@ func runSelfTest() {
           abs(displayProgress(mon, modeP, st) - weekProgress(mon, modeP)) < 0.0001, "")
     check("周进度 周起点为周一", cal.component(.weekday, from: weekStart(d(2026, 11, 13, 12))) == 2, "")
 
+    // 通用多段休息
+    let bpDay = d(2026, 11, 9, 9)
+    let twoBreaks = cfg {
+        $0.start = "09:00"; $0.end = "19:00"; $0.workdays = [1,2,3,4,5]
+        $0.breakPeriods = [
+            BreakPeriod(id: "a", name: "午休", start: "12:00", end: "13:00", enabled: true),
+            BreakPeriod(id: "b", name: "晚饭", start: "18:00", end: "18:30", enabled: true)
+        ]
+    }
+    let sh = dayShift(bpDay, twoBreaks)!
+    check("多段休息 总工时扣两段", abs(sh.totalWork - (10 * 3600 - 3600 - 1800)) < 1, "")
+    check("多段休息 段数", sh.breaks.count == 2, "")
+    check("多段休息 currentBreak 返回名称", sh.currentBreak(at: d(2026, 11, 9, 18, 10))?.name == "晚饭", "")
+    check("多段休息 breakElapsed 累加", abs(sh.breakElapsed(at: d(2026, 11, 9, 18, 10)) - (3600 + 600)) < 1, "")
+
+    let overlap = cfg {
+        $0.start = "09:00"; $0.end = "19:00"; $0.workdays = [1,2,3,4,5]
+        $0.breakPeriods = [
+            BreakPeriod(id: "a", name: "午休", start: "12:00", end: "13:00", enabled: true),
+            BreakPeriod(id: "b", name: "下午茶", start: "12:30", end: "14:00", enabled: true)
+        ]
+    }
+    let sh2 = dayShift(bpDay, overlap)!
+    check("多段休息 重叠合并", sh2.breaks.count == 1 && abs(sh2.breakLength - 2 * 3600) < 1, "")
+
+    let clipped = cfg {
+        $0.start = "09:00"; $0.end = "18:10"; $0.workdays = [1,2,3,4,5]
+        $0.breakPeriods = [BreakPeriod(id: "d", name: "晚饭", start: "18:00", end: "19:00", enabled: true)]
+    }
+    check("多段休息 裁剪到班次", abs(dayShift(bpDay, clipped)!.breakLength - 600) < 1, "")
+
+    var disabled = twoBreaks; disabled.breakPeriods[1].enabled = false
+    check("多段休息 禁用段不生效", dayShift(bpDay, disabled)!.breaks.count == 1, "")
+
+    let legacyJSON = "{\"start\":\"09:00\",\"end\":\"18:00\",\"breakEnabled\":true,\"breakStart\":\"12:00\",\"breakEnd\":\"14:00\"}".data(using: .utf8)!
+    let legacy = (try? JSONDecoder().decode(Prefs.self, from: legacyJSON)).map { $0.validated() }
+    check("多段休息 旧配置迁移为午休段",
+          legacy?.breakPeriods.count == 1 && legacy?.breakPeriods[0].name == "午休"
+          && legacy?.breakPeriods[0].end == "14:00", "")
+
+    let weekTwo = cfg {
+        $0.start = "09:00"; $0.end = "19:00"; $0.workdays = [1,2,3,4,5]
+        $0.breakPeriods = [
+            BreakPeriod(id: "a", name: "午休", start: "12:00", end: "13:00", enabled: true),
+            BreakPeriod(id: "b", name: "晚饭", start: "18:00", end: "18:30", enabled: true)
+        ]
+    }
+    check("多段休息 周目标扣除所有段",
+          abs(weekTargetSeconds(mon, weekTwo) - 5 * (10 * 3600 - 3600 - 1800)) < 1, "")
+
     if failures > 0 { print("SELFTEST FAILED: \(failures) case(s)"); exit(1) }
-    print("SELFTEST PASSED (58 cases)")
+    print("SELFTEST PASSED (67 cases)")
 }
 

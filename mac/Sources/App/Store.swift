@@ -82,6 +82,16 @@ final class Store: ObservableObject {
         if prefs.launchAtLogin != actual { prefs.launchAtLogin = actual }
     }
 
+    // MARK: - 不计入工时的休息段
+
+    func addBreakPeriod(name: String, start: String, end: String) {
+        prefs.breakPeriods.append(BreakPeriod(id: UUID().uuidString,
+                                              name: name, start: start, end: end, enabled: true))
+    }
+    func removeBreakPeriod(id: String) {
+        prefs.breakPeriods.removeAll { $0.id == id }
+    }
+
     // MARK: - 通用作息规则
 
     func addSchedule(name: String, start: String, end: String) {

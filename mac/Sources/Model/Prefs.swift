@@ -18,6 +18,15 @@ struct WorkSchedule: Codable, Equatable, Identifiable {
     var schedule: DaySchedule { DaySchedule(start, end) }   // 计算属性，不参与 Codable
 }
 
+/// 不计入工时的休息段（午休、晚饭、下午茶…），可任意增删
+struct BreakPeriod: Codable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var start: String
+    var end: String
+    var enabled: Bool = true
+}
+
 struct Prefs: Codable {
     var start: String = "09:00"            // 上班时间 HH:mm
     var end: String = "18:00"              // 下班时间 HH:mm
@@ -36,9 +45,10 @@ struct Prefs: Codable {
     var collapsed: Bool = false           // 悬浮窗收缩成小图标
     var stealth: Bool = false             // 完全隐身
     var stealthUntil: Double? = nil       // 临时隐身到期时间
-    var breakEnabled: Bool = false        // 午休不计入工作进度
+    var breakEnabled: Bool = false        // 旧版单段午休，仅用于兼容迁移
     var breakStart: String? = "12:00"
     var breakEnd: String? = "13:00"
+    var breakPeriods: [BreakPeriod] = [] // 不计入工时的休息段（通用多段）
     var dayOverrides: [String: Int] = [:] // "yyyy-MM-dd": 1 补班 / 0 放假
     // 通用作息规则：方案库 / 星期规则 / 日期覆盖（旧配置缺省时为空，行为不变）
     var schedules: [WorkSchedule] = []
@@ -54,7 +64,7 @@ struct Prefs: Codable {
         case start, end, workdays, showPanel, compact, alwaysOnTop, sound, theme,
              launchAtLogin, panelOpacity, panelOrigin, palette, customHex,
              collapsed, stealth, stealthUntil, breakEnabled, breakStart, breakEnd,
-             dayOverrides, schedules, weekdayRules, dateOverrides, menuStyle, menuPercent,
+             breakPeriods, dayOverrides, schedules, weekdayRules, dateOverrides, menuStyle, menuPercent,
              progressMode, weeklyTargetHours
     }
 
@@ -82,6 +92,14 @@ struct Prefs: Codable {
         breakEnabled = try c.decodeIfPresent(Bool.self, forKey: .breakEnabled) ?? false
         breakStart = try c.decodeIfPresent(String.self, forKey: .breakStart) ?? "12:00"
         breakEnd = try c.decodeIfPresent(String.self, forKey: .breakEnd) ?? "13:00"
+        // 旧配置迁移：没有 breakPeriods 且开了午休时，把旧午休变成第一段「午休」
+        let hadPeriods = c.contains(.breakPeriods)
+        breakPeriods = try c.decodeIfPresent([BreakPeriod].self, forKey: .breakPeriods) ?? []
+        if !hadPeriods && breakPeriods.isEmpty && breakEnabled {
+            breakPeriods = [BreakPeriod(id: "legacy-lunch", name: "午休",
+                                        start: breakStart ?? "12:00",
+                                        end: breakEnd ?? "13:00", enabled: true)]
+        }
         dayOverrides = try c.decodeIfPresent([String: Int].self, forKey: .dayOverrides) ?? [:]
         schedules = try c.decodeIfPresent([WorkSchedule].self, forKey: .schedules) ?? []
         weekdayRules = try c.decodeIfPresent([String: DaySchedule].self, forKey: .weekdayRules) ?? [:]
@@ -109,6 +127,9 @@ struct Prefs: Codable {
         func validTime(_ s: String) -> Bool {
             let t = hhmm(s)
             return t.0 >= 0 && t.0 < 24 && t.1 >= 0 && t.1 < 60
+        }
+        p.breakPeriods = p.breakPeriods.filter {
+            !$0.id.isEmpty && !$0.name.isEmpty && validTime($0.start) && validTime($0.end)
         }
         p.schedules = p.schedules.filter {
             !$0.id.isEmpty && !$0.name.isEmpty && validTime($0.start) && validTime($0.end)

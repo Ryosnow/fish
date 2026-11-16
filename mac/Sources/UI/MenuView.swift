@@ -23,6 +23,9 @@ struct MenuView: View {
     @State private var newRuleStart = dateFromHHMM("09:00")
     @State private var newRuleEnd = dateFromHHMM("18:00")
     @State private var todayEnd = dateFromHHMM("18:00")
+    @State private var newBreakName = ""
+    @State private var newBreakStart = dateFromHHMM("12:00")
+    @State private var newBreakEnd = dateFromHHMM("13:00")
 
     private func todaySourceText(_ now: Date, _ p: Prefs) -> String {
         if p.dateOverrides[dayKey(now)] != nil { return "今天已临时调整，不影响其它日期" }
@@ -353,25 +356,76 @@ struct MenuView: View {
                     }
                 }
                 .padding(.vertical, 2)
-                CardSeparator()
-                CheckRow(title: "午休不计入进度", subtitle: "午休时间从工作时长中扣除", isOn: $store.prefs.breakEnabled)
-                if store.prefs.breakEnabled {
-                    HStack(spacing: 8) {
-                        DatePicker("", selection: Binding<Date>(
-                            get: { dateFromHHMM(store.prefs.breakStart ?? "12:00") },
-                            set: { store.prefs.breakStart = hhmmString($0) }
-                        ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
-                        Text("至").font(.caption).foregroundStyle(PanelColor.secondary)
-                            .lineLimit(1).fixedSize()
-                        DatePicker("", selection: Binding<Date>(
-                            get: { dateFromHHMM(store.prefs.breakEnd ?? "13:00") },
-                            set: { store.prefs.breakEnd = hhmmString($0) }
-                        ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
-                        Spacer()
-                    }
-                }
             }
             .font(.caption)
+
+            SettingsCard("不计入工时的时段") {
+                let periods = store.prefs.breakPeriods
+                if periods.isEmpty {
+                    Text("还没有休息段。可添加午休、晚饭等不计入工时的时段，进度与周工时会一并扣除。")
+                        .font(.caption).foregroundStyle(PanelColor.secondary)
+                } else {
+                    ForEach(periods) { bp in
+                        let i = periods.firstIndex(where: { $0.id == bp.id })!
+                        HStack(spacing: 6) {
+                            Toggle(isOn: Binding<Bool>(
+                                get: { store.prefs.breakPeriods[i].enabled },
+                                set: { store.prefs.breakPeriods[i].enabled = $0 }
+                            )) {
+                                Text(bp.name).font(.subheadline).lineLimit(1)
+                            }
+                            .toggleStyle(.checkbox)
+                            Spacer()
+                            Text("\(bp.start) – \(bp.end)").font(.caption).monospacedDigit()
+                            Button {
+                                store.removeBreakPeriod(id: bp.id)
+                            } label: {
+                                Image(systemName: "trash").font(.caption)
+                            }
+                            .buttonStyle(.plain).foregroundStyle(PanelColor.secondary)
+                            .accessibilityLabel("删除\(bp.name)")
+                        }
+                        HStack(spacing: 8) {
+                            DatePicker("", selection: Binding<Date>(
+                                get: { dateFromHHMM(store.prefs.breakPeriods[i].start) },
+                                set: { store.prefs.breakPeriods[i].start = hhmmString($0) }
+                            ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
+                            Text("至").font(.caption).foregroundStyle(PanelColor.secondary)
+                                .lineLimit(1).fixedSize()
+                            DatePicker("", selection: Binding<Date>(
+                                get: { dateFromHHMM(store.prefs.breakPeriods[i].end) },
+                                set: { store.prefs.breakPeriods[i].end = hhmmString($0) }
+                            ), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
+                            Spacer()
+                        }
+                        if bp.id != periods.last?.id { CardSeparator() }
+                    }
+                }
+                DisclosureGroup("添加时段") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("名称，如 晚饭", text: $newBreakName)
+                            .textFieldStyle(.roundedBorder)
+                        HStack {
+                            Text("从").font(.caption).lineLimit(1).fixedSize()
+                            DatePicker("", selection: $newBreakStart, displayedComponents: .hourAndMinute)
+                                .labelsHidden().fixedSize()
+                            Spacer()
+                            Text("至").font(.caption).lineLimit(1).fixedSize()
+                            DatePicker("", selection: $newBreakEnd, displayedComponents: .hourAndMinute)
+                                .labelsHidden().fixedSize()
+                        }
+                        Button("添加") {
+                            let name = newBreakName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !name.isEmpty else { return }
+                            store.addBreakPeriod(name: name,
+                                                 start: hhmmString(newBreakStart),
+                                                 end: hhmmString(newBreakEnd))
+                            newBreakName = ""
+                        }
+                    }
+                    .padding(.top, 6)
+                }
+            }
 
             DisclosureGroup("节假日 / 调休（按日期覆盖）") {
                 VStack(alignment: .leading, spacing: 8) {
