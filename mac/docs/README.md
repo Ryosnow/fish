@@ -10,7 +10,7 @@
 | [作息规则](作息规则.md) | 通用配置化作息：方案库、星期规则、当天临时调整与优先级 | `Sources/Model/`、`Sources/UI/MenuView.swift` |
 | [周进度](周进度.md) | 当日 / 本周进度口径切换、周工时自动求和与手动覆盖、「周进度」Tab | `Sources/Model/Time.swift`、`Sources/MenuBar/Ring.swift` |
 | [休息时段](休息时段.md) | 通用多段不计入工时的休息（午休 / 晚饭…）、裁剪合并、旧配置迁移 | `Sources/Model/`、`Sources/UI/MenuView.swift` |
-| [语录](语录.md) | 悬浮窗轮换短句：11 类 182 条、挑选逻辑与风格约定 | `Sources/Model/Time.swift` |
+| [语录](语录.md) | 悬浮窗轮换短句：11 类 182 条 + 5 组星期语气、挑选逻辑与风格约定 | `Sources/Model/Time.swift` |
 
 ## 文档体系
 

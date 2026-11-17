@@ -300,7 +300,21 @@ func runSelfTest() {
     check("语录 休息中取自 break 池",
           QUOTES["break"]!.contains(computeState(d(2026, 11, 13, 12, 30), p3).quote), "")
 
+    // 按星期几的语气
+    check("语录 工作日语气池 5 组各 14 条",
+          WEEKDAY_QUOTES.count == 5 && WEEKDAY_QUOTES.values.allSatisfy { $0.count == 14 }, "")
+    check("语录 周一取自周一池",
+          WEEKDAY_QUOTES[2]!.contains(workingQuote(5 * 3600, d(2026, 11, 16, 10))), "")
+    check("语录 周五取自周五池",
+          WEEKDAY_QUOTES[6]!.contains(workingQuote(5 * 3600, d(2026, 11, 20, 10))), "")
+    check("语录 周末走原时长池",
+          QUOTES["far"]!.contains(workingQuote(5 * 3600, d(2026, 11, 21, 10))), "")
+    check("语录 深夜优先于星期语气",
+          QUOTES["night"]!.contains(workingQuote(5 * 3600, d(2026, 11, 16, 23))), "")
+    check("语录 临下班不按星期",
+          QUOTES["minutes"]!.contains(workingQuote(900, d(2026, 11, 16, 10))), "")
+
     if failures > 0 { print("SELFTEST FAILED: \(failures) case(s)"); exit(1) }
-    print("SELFTEST PASSED (72 cases)")
+    print("SELFTEST PASSED (78 cases)")
 }
 
