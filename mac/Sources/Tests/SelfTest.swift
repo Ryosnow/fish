@@ -287,6 +287,10 @@ func runSelfTest() {
     // 语录池
     check("语录 11 类且每类不少于 5 条",
           QUOTES.count == 11 && QUOTES.values.allSatisfy { $0.count >= 5 }, "")
+    check("语录 工作时段每类不少于 18 条",
+          ["far", "mid", "hour", "minutes", "final", "night"].allSatisfy {
+              (QUOTES[$0]?.count ?? 0) >= 18
+          }, "")
     check("语录 各时段返回非空",
           [5 * 3600.0, 3 * 3600.0, 1.5 * 3600.0, 900.0, 300.0].allSatisfy {
               !workingQuote($0, d(2026, 11, 13, 15, 0)).isEmpty
@@ -297,6 +301,6 @@ func runSelfTest() {
           QUOTES["break"]!.contains(computeState(d(2026, 11, 13, 12, 30), p3).quote), "")
 
     if failures > 0 { print("SELFTEST FAILED: \(failures) case(s)"); exit(1) }
-    print("SELFTEST PASSED (71 cases)")
+    print("SELFTEST PASSED (72 cases)")
 }
 

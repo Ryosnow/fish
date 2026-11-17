@@ -63,7 +63,7 @@ OffWorkCountdown/
 │   │   ├── SettingsComponents.swift CardSeparator / SettingsCard / CheckRow
 │   │   └── MenuView.swift           设置面板（4 个 Tab）
 │   └── Tests/
-│       └── SelfTest.swift           71 项纯函数回归自测
+│       └── SelfTest.swift           72 项纯函数回归自测
 ├── Info.plist
 ├── make_icon.py
 ├── build.sh
@@ -111,7 +111,7 @@ graph TD
 | --- | --- |
 | `--version-check` | 打印版本与系统版本，验证可执行文件 / 动态库可加载 |
 | `--hotkey-check` | 注册一次全局热键，检测是否被占用 |
-| `--selftest` | 跑 `runSelfTest()` 的 71 项纯函数断言，失败退出非 0 |
+| `--selftest` | 跑 `runSelfTest()` 的 72 项纯函数断言，失败退出非 0 |
 | 默认 | `NSApplication.shared` → `AppDelegate` → `setActivationPolicy(.accessory)` → `app.run()` |
 
 > **为什么入口这么瘦**：Swift 规定顶层可执行语句只能出现在 `main.swift`。旧版把 1798 行库代码和入口混在一起，全局变量按源码顺序初始化，`--selftest` 曾因 `QUOTES` 未初始化而 segfault。拆分后全局常量由编译器按需惰性初始化，该陷阱消失。详见 [项目结构](docs/项目结构.md)。
@@ -170,7 +170,7 @@ graph TD
 | `ringDotGeometry(ringCenter:ringRadius:)` | 色点位置与半径（压住环右下角一小段） |
 | `menuPercentText(progress:isStealth:)` | `41%` 文案，隐身时 `nil`，`100%` 右对齐不越界 |
 
-把绘制参数抽成纯数据，是为了让 71 项自测能覆盖形态与边界，而不必渲染视图。
+把绘制参数抽成纯数据，是为了让 72 项自测能覆盖形态与边界，而不必渲染视图。
 
 ---
 

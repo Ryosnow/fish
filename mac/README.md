@@ -24,7 +24,7 @@ cd 其他/OffWorkCountdown
 | `Sources/Model/` | `Prefs.swift`（偏好模型与向后兼容解码）、`Time.swift`（时间工具、状态模型、语录池、班次与进度纯计算） |
 | `Sources/MenuBar/` | `Ring.swift`（`RingStatusView` 自绘进度环、色点与百分比绘制参数） |
 | `Sources/UI/` | `Theme.swift`（语义色）、`Components.swift`、`PanelRoot.swift`、`SettingsComponents.swift`、`MenuView.swift` |
-| `Sources/Tests/` | `SelfTest.swift`（71 项纯函数回归自测） |
+| `Sources/Tests/` | `SelfTest.swift`（72 项纯函数回归自测） |
 | `Info.plist` | `LSUIElement = true`（不显示 Dock 图标）等 |
 | `make_icon.py` | 纯标准库生成 1024px PNG 图标（无第三方依赖） |
 | `build.sh` | 生成图标 → 收集 `Sources/**/*.swift` 编译 → 打包 → 签名 → 三项自检 |
@@ -69,7 +69,7 @@ cd 其他/OffWorkCountdown
 
 - `shifts(around:)` 生成前后班次；`end <= start` 视为次日下班（跨零点）。
 - `isWorkday()` 先查 `dayOverrides`（`yyyy-MM-dd` → 1 补班 / 0 放假）再回落每周工作日；启用的休息段从净工时扣除。
-- `computeState(now, prefs)` 派生 `CountdownState`，是 SwiftUI 视图唯一数据源；悬浮窗语录按场景每分钟轮换，11 类 86 条，详见 [语录](docs/语录.md)。
+- `computeState(now, prefs)` 派生 `CountdownState`，是 SwiftUI 视图唯一数据源；悬浮窗语录按场景每分钟轮换，11 类 182 条，详见 [语录](docs/语录.md)。
 - **多段休息**：`breakPeriods` 定义任意多段不计入工时的休息（午休、晚饭…），按班次裁剪、合并重叠后扣减当日进度与周工时；旧版午休设置自动迁移，详见 [休息时段](docs/休息时段.md)
 - **周进度**：`weekTargetSeconds` / `weekWorkedSeconds` / `weekProgress` 按「本周累计净工时 ÷ 每周总工时」算进度，目标默认从作息规则自动求和、可手动覆盖；`displayProgress` 按 `progressMode` 给菜单栏环与百分比切换口径，悬浮窗保持当日。详见 [周进度](docs/周进度.md)
 - **通用作息规则**：`schedule(for:_:)` 按「当天日期覆盖 > 星期规则 > 全局默认」解析当天作息，`shifts` 与 `nextWorkStart` 都走它。方案库 / 星期规则 / 今天调整全部由用户配置，无任何硬编码时间，详见 [作息规则](docs/作息规则.md)。
@@ -90,7 +90,7 @@ cd 其他/OffWorkCountdown
 | 隐身 | `stealth` / `stealthUntil`；`tick()` 到期自动恢复，手动隐身不跨重启 |
 | 单实例 | 启动时检测同名 bundle 已运行则自退 |
 | 持久化 | `UserDefaults` 单个 JSON（key `com.rumor.offwork-countdown.prefs.v1`），`Prefs.init(from:)` 用 `decodeIfPresent` 向后兼容；窗口位置一并保存 |
-| 自检 | `--version-check` / `--hotkey-check` / `--selftest`（71 项纯函数回归，失败退出非 0），`build.sh` 自动跑三项 |
+| 自检 | `--version-check` / `--hotkey-check` / `--selftest`（72 项纯函数回归，失败退出非 0），`build.sh` 自动跑三项 |
 
 ## 修改默认值
 
